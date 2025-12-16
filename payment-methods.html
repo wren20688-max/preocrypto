@@ -134,6 +134,19 @@
 
       loadBalance();
       setupMenuToggle();
+
+      // If opened from Quick Deposit, default to M-Pesa STK flow
+      try {
+        const params = new URLSearchParams(window.location.search);
+        if (params.has('quick')) {
+          selectPaymentMethod('mpesa');
+          const amt = parseFloat(params.get('amount') || '');
+          if (!isNaN(amt) && amt > 0) {
+            const amtInput = document.getElementById('mpesaAmount');
+            if (amtInput) amtInput.value = String(amt);
+          }
+        }
+      } catch (_) {}
     });
 
     function loadBalance() {
@@ -245,43 +258,16 @@
         if (intent.success && intent.paymentUrl) {
           window.open(intent.paymentUrl, '_blank');
         } else {
-          // Fallback simulation if API keys not set
-          setTimeout(() => showPayheroPayment(phone, amount), 1200);
+          alert('Unable to create PayHero payment. Please try again.');
         }
       } catch (e) {
-        console.warn('PayHero intent failed, using fallback:', e.message);
-        setTimeout(() => showPayheroPayment(phone, amount), 1200);
+        console.warn('PayHero intent failed:', e.message);
+        alert('PayHero is currently unavailable. Please retry shortly.');
       }
     }
 
-    function showPayheroPayment(phone, amount) {
-      // Convert USD to KSH (1 USD = 130 KSH approx)
-      const kshAmount = Math.round(amount * 130);
-      
-      const paymentRef = prompt('💳 PayHero Payment\n\nM-Pesa Number: ' + phone + '\nUSD Amount: $' + amount.toFixed(2) + '\nKSH Amount: KSH ' + kshAmount + '\n\nProceed to PayHero to complete payment.\n:', '');
-      
-      if (paymentRef !== null) {
-        // Simulate PayHero payment completion
-        setTimeout(() => {
-          const refNo = 'PH-' + Date.now();
-          sendBrowserNotification('✅ Payment Completed', 'Amount: KSH ' + kshAmount + ' | Ref: ' + refNo);
-          alert('✅ PayHero Payment Completed!\n\nM-Pesa: ' + phone + '\nAmount: KSH ' + kshAmount + '\nReference: ' + refNo + '\n\nYour account has been credited.');
-          resetStkPush();
-          backToPaymentList();
-          
-          // Update real balance and record on server
-          const newBalance = storage.getBalance('real') + amount;
-          storage.setBalance(newBalance, 'real');
-          // Call server deposit endpoint
-          (window.apiFetch || fetch)('/api/payment/deposit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (storage.getToken?.() || localStorage.getItem('preo_token') || '') },
-            body: JSON.stringify({ amount, method: 'mpesa', account: 'real' })
-          }).catch(()=>{});
-          loadBalance();
-        }, 1500);
-      }
-    }
+    // Removed local simulation and auto-crediting to ensure payments are only
+    // completed via PayHero and reflected by backend webhook updates.
 
     function resetStkPush() {
       document.getElementById('mpesaPhone').value = '';

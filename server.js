@@ -12,6 +12,8 @@ app.use(express.static(path.join(__dirname)));
 
 const DB_PATH = path.join(__dirname, 'db.json');
 const JWT_SECRET = process.env.JWT_SECRET || 'preocrypto-secret-key-2024';
+const PAYHERO_SECRET_KEY = process.env.PAYHERO_API_KEY || '';
+const PAYHERO_ACCOUNT_ID = process.env.PAYHERO_ACCOUNT_ID || '';
 
 // ============================================================================
 // DEMO USERS FOR TESTING
@@ -48,6 +50,43 @@ function loadDB() {
 
 function saveDB(db) {
   fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
+}
+
+// ============================================================================
+// CURRENCY CONVERSION HELPERS
+// ============================================================================
+
+const FX_RATES = {
+  KES: 130,   // Kenya Shilling per USD (approx)
+  NGN: 1500,  // Nigeria Naira per USD (example)
+  ZAR: 18.5,  // South African Rand per USD (example)
+  GHS: 14.0   // Ghana Cedi per USD (example)
+};
+
+function getUserCountry(db, username) {
+  const user = db.users[username] || DEMO_USERS[username] || {};
+  return user.country || null;
+}
+
+function convertLocalAmount(db, username, amountUSD) {
+  const country = getUserCountry(db, username);
+  if (!country) return null;
+  switch (country.toUpperCase()) {
+    case 'KE':
+    case 'KENYA':
+      return { currency: 'KES', amount: Math.round(amountUSD * FX_RATES.KES) };
+    case 'NG':
+    case 'NIGERIA':
+      return { currency: 'NGN', amount: Math.round(amountUSD * FX_RATES.NGN) };
+    case 'ZA':
+    case 'SOUTH AFRICA':
+      return { currency: 'ZAR', amount: Math.round(amountUSD * FX_RATES.ZAR * 100) / 100 };
+    case 'GH':
+    case 'GHANA':
+      return { currency: 'GHS', amount: Math.round(amountUSD * FX_RATES.GHS * 100) / 100 };
+    default:
+      return null;
+  }
 }
 
 // ============================================================================
@@ -162,7 +201,7 @@ app.post('/api/auth/identify', (req, res) => {
 });
 
 app.post('/api/auth/register', (req, res) => {
-  const { username, password, name, email } = req.body;
+  const { username, password, name, email, country } = req.body;
   
   if (!username || !password || !name) {
     return res.status(400).json({ error: 'All fields required' });
@@ -181,6 +220,7 @@ app.post('/api/auth/register', (req, res) => {
     password,
     name,
     email,
+    country: country || null,
     demoBalance: 10000,
     realBalance: 0,
     createdAt: new Date(),
@@ -369,6 +409,13 @@ app.post('/api/trade/execute', verifyToken, (req, res) => {
   if (!market) {
     return res.status(400).json({ error: 'Invalid trading pair' });
   }
+
+  // Enforce minimum balance requirement for real accounts
+  const balanceKeyExec = (account === 'real') ? 'realBalance' : 'demoBalance';
+  const currentBalanceExec = db.users[req.user.username]?.[balanceKeyExec] || (balanceKeyExec === 'demoBalance' ? 10000 : 0);
+  if (account === 'real' && currentBalanceExec < 15) {
+    return res.status(400).json({ error: 'Minimum account balance to trade is $15' });
+  }
   
   const entryPrice = type === 'BUY' ? market.ask : market.bid;
   
@@ -534,25 +581,37 @@ app.post('/api/payment/deposit', verifyToken, (req, res) => {
     return res.status(400).json({ error: `Minimum deposit is $${minDeposit}` });
   }
   
-  // Update balance
+  // Decide status: instant methods complete, mpesa/crypto pending
+  const status = (isMpesa || isCrypto) ? 'pending' : 'completed';
+  
+  // For completed methods, update balance immediately
   const balanceKey = account === 'real' ? 'realBalance' : 'demoBalance';
   if (!db.users[req.user.username]) db.users[req.user.username] = {};
-  db.users[req.user.username][balanceKey] = (db.users[req.user.username][balanceKey] || 10000) + amount;
+  if (status === 'completed') {
+    db.users[req.user.username][balanceKey] = (db.users[req.user.username][balanceKey] || 10000) + amount;
+  }
   
-  // Record transaction
+  // Record transaction with local currency conversion
   if (!db.transactions) db.transactions = [];
-  db.transactions.push({
+  const local = convertLocalAmount(db, req.user.username, amount);
+  const tx = {
     id: Date.now().toString(),
     username: req.user.username,
     type: 'deposit',
     method,
     amount,
-    status: 'completed',
+    status,
+    account: account || 'real',
     timestamp: new Date()
-  });
+  };
+  if (local) {
+    tx.localCurrency = local.currency;
+    tx.localAmount = local.amount;
+  }
+  db.transactions.push(tx);
   
   saveDB(db);
-  res.json({ success: true, newBalance: db.users[req.user.username][balanceKey] });
+  res.json({ success: true, status, newBalance: db.users[req.user.username][balanceKey] || 0 });
 });
 
 app.post('/api/payment/withdrawal', verifyToken, (req, res) => {
@@ -598,7 +657,8 @@ app.post('/api/payment/withdrawal', verifyToken, (req, res) => {
   
   // Record transaction
   if (!db.transactions) db.transactions = [];
-  db.transactions.push({
+  const localW = convertLocalAmount(db, req.user.username, amount);
+  const wtx = {
     id: Date.now().toString(),
     username: req.user.username,
     type: 'withdrawal',
@@ -608,7 +668,12 @@ app.post('/api/payment/withdrawal', verifyToken, (req, res) => {
     account: account,
     details,
     timestamp: new Date()
-  });
+  };
+  if (localW) {
+    wtx.localCurrency = localW.currency;
+    wtx.localAmount = localW.amount;
+  }
+  db.transactions.push(wtx);
   
   if (!db.withdrawals) db.withdrawals = [];
   db.withdrawals.push({
@@ -819,4 +884,80 @@ app.listen(PORT, () => {
   console.log(`🚀 PreoCrypto API Server running on http://localhost:${PORT}`);
   console.log(`📊 Demo Users: trader1@demo.local (pass123), admin@demo.local (admin123)`);
   console.log(`📁 Database: ${DB_PATH}`);
+});
+
+// ============================================================================
+// PAYHERO WEBHOOK ENDPOINT
+// ============================================================================
+
+app.post('/webhook/payhero', (req, res) => {
+  const db = loadDB();
+  const event = req.body || {};
+  const { event_type, data } = event;
+
+  // Optional: verify signature header
+  // const sig = req.headers['x-payhero-signature'];
+  // TODO: HMAC verification using PAYHERO_SECRET_KEY
+
+  // Find related transaction if any
+  const username = data?.metadata?.user_id || data?.metadata?.user_email || null;
+  const amountUSD = data?.metadata?.original_amount || data?.amount || 0;
+  const method = data?.payment_method || data?.method || 'mpesa';
+  const account = (data?.metadata?.account) || 'real';
+
+  // Update transaction status and balance on completion
+  if (event_type === 'payment.completed') {
+    // Credit balance
+    if (!db.users[username]) db.users[username] = { username };
+    const balanceKey = account === 'real' ? 'realBalance' : 'demoBalance';
+    db.users[username][balanceKey] = (db.users[username][balanceKey] || (balanceKey === 'demoBalance' ? 10000 : 0)) + amountUSD;
+    
+    // Record completed transaction
+    if (!db.transactions) db.transactions = [];
+    const local = convertLocalAmount(db, username, amountUSD);
+    const tx = {
+      id: Date.now().toString(),
+      username,
+      type: 'deposit',
+      method,
+      amount: amountUSD,
+      status: 'completed',
+      account,
+      timestamp: new Date(),
+      paymentId: data?.id,
+      transactionId: data?.transaction_id
+    };
+    if (local) { tx.localCurrency = local.currency; tx.localAmount = local.amount; }
+    db.transactions.push(tx);
+  } else if (event_type === 'payment.failed') {
+    if (!db.transactions) db.transactions = [];
+    db.transactions.push({
+      id: Date.now().toString(),
+      username,
+      type: 'deposit',
+      method,
+      amount: amountUSD,
+      status: 'failed',
+      account,
+      timestamp: new Date(),
+      paymentId: data?.id,
+      error: data?.error_message
+    });
+  } else if (event_type === 'payment.pending') {
+    if (!db.transactions) db.transactions = [];
+    db.transactions.push({
+      id: Date.now().toString(),
+      username,
+      type: 'deposit',
+      method,
+      amount: amountUSD,
+      status: 'pending',
+      account,
+      timestamp: new Date(),
+      paymentId: data?.id
+    });
+  }
+
+  saveDB(db);
+  res.json({ success: true });
 });

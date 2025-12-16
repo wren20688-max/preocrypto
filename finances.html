@@ -376,22 +376,10 @@
     function processDeposit() {
       const amount = parseFloat(document.getElementById('depositAmount')?.value || 0);
       if (!amount || amount < 10) { alert('Minimum deposit is $10'); return; }
-      // For crypto, enforce $25 (this quick deposit defaults to M-Pesa unless methods selected)
-      // Apply to real account by default
-      (window.apiFetch || fetch)('/api/payment/deposit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('preo_token')||'') },
-        body: JSON.stringify({ amount, method: 'mpesa', account: currentAccount === 'real' ? 'real' : 'real' })
-      }).then(async res => {
-        if (!res.ok) { const d = await res.json().catch(()=>({error:'Deposit failed'})); throw new Error(d.error); }
-        return res.json();
-      }).then(() => {
-        const key = 'accountData_real_balance';
-        const bal = parseFloat(localStorage.getItem(key) || '0');
-        localStorage.setItem(key, (bal + amount).toString());
-        alert('Deposit of $' + amount.toFixed(2) + ' initiated!');
-        loadBalances();
-      }).catch(err => alert('Deposit error: ' + err.message));
+      // Do NOT create or complete a payment here.
+      // Just redirect to M-Pesa payment page where user enters phone and triggers STK via PayHero.
+      const params = new URLSearchParams({ method: 'mpesa', quick: '1', amount: String(amount) });
+      window.location.href = 'payment-methods.html?' + params.toString();
     }
 
     function processWithdraw() {
@@ -421,9 +409,33 @@
       const realBalance = parseFloat(localStorage.getItem('accountData_real_balance') || '0');
       const totalBalance = demoBalance + realBalance;
       
-      document.getElementById('totalBalance').textContent = '$' + totalBalance.toLocaleString('en-US', {minimumFractionDigits: 2});
-      document.getElementById('demoBalance').textContent = '$' + demoBalance.toLocaleString('en-US', {minimumFractionDigits: 2});
-      document.getElementById('realBalance').textContent = '$' + realBalance.toLocaleString('en-US', {minimumFractionDigits: 2});
+      const token = localStorage.getItem('preo_token') || '';
+      // Fetch profile to determine country for local currency display
+      fetch('/api/user/profile', { headers: { 'Authorization': 'Bearer ' + token } })
+        .then(r => r.ok ? r.json() : null)
+        .then(p => {
+          const country = p?.country || '';
+          const fx = { KES: 130, NGN: 1500, ZAR: 18.5, GHS: 14.0 };
+          function toLocal(amountUSD) {
+            switch ((country||'').toUpperCase()) {
+              case 'KE': return { code: 'KES', amt: Math.round(amountUSD * fx.KES) };
+              case 'NG': return { code: 'NGN', amt: Math.round(amountUSD * fx.NGN) };
+              case 'ZA': return { code: 'ZAR', amt: Math.round(amountUSD * fx.ZAR * 100)/100 };
+              case 'GH': return { code: 'GHS', amt: Math.round(amountUSD * fx.GHS * 100)/100 };
+              default: return null;
+            }
+          }
+          const tLocal = toLocal(totalBalance);
+          const dLocal = toLocal(demoBalance);
+          const rLocal = toLocal(realBalance);
+          document.getElementById('totalBalance').textContent = '$' + totalBalance.toLocaleString('en-US', {minimumFractionDigits: 2}) + (tLocal ? ` • ${tLocal.code} ${tLocal.amt.toLocaleString('en-US')}` : '');
+          document.getElementById('demoBalance').textContent = '$' + demoBalance.toLocaleString('en-US', {minimumFractionDigits: 2}) + (dLocal ? ` • ${dLocal.code} ${dLocal.amt.toLocaleString('en-US')}` : '');
+          document.getElementById('realBalance').textContent = '$' + realBalance.toLocaleString('en-US', {minimumFractionDigits: 2}) + (rLocal ? ` • ${rLocal.code} ${rLocal.amt.toLocaleString('en-US')}` : '');
+        }).catch(() => {
+          document.getElementById('totalBalance').textContent = '$' + totalBalance.toLocaleString('en-US', {minimumFractionDigits: 2});
+          document.getElementById('demoBalance').textContent = '$' + demoBalance.toLocaleString('en-US', {minimumFractionDigits: 2});
+          document.getElementById('realBalance').textContent = '$' + realBalance.toLocaleString('en-US', {minimumFractionDigits: 2});
+        });
       
       // Update current account display
       updateAccountDisplay();
@@ -491,6 +503,7 @@
               <div style="text-align: right;">
                 <strong style="color: ${t.amount.startsWith('+') ? 'var(--success)' : 'var(--danger)'}">${t.amount}</strong>
                 <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">${t.status}</div>
+                ${t.localAmount ? `<div style="font-size: 12px; color: var(--text-tertiary);">${t.localCurrency} ${t.localAmount}</div>` : ''}
               </div>
             </div>`).join('');
         })

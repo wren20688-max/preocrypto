@@ -33,10 +33,29 @@
   };
 
   // Basic app config (placeholders — update to your real contacts)
+  // Generate random support contacts once and persist
+  function genRandomEmail() {
+    const id = Math.random().toString(36).slice(2, 7);
+    return `support+${id}@example.com`;
+  }
+  function genRandomPhone() {
+    const d = () => Math.floor(Math.random() * 10);
+    return `+${d()}${d()}${d()} ${d()}${d()}${d()} ${d()}${d()}${d()}${d()}`;
+  }
+  const CONTACTS_KEY = 'preo_support_contacts';
+  let contacts = null;
+  try {
+    contacts = JSON.parse(localStorage.getItem(CONTACTS_KEY) || 'null');
+  } catch (_) { contacts = null; }
+  if (!contacts) {
+    contacts = { email: genRandomEmail(), phone: genRandomPhone() };
+    localStorage.setItem(CONTACTS_KEY, JSON.stringify(contacts));
+  }
+
   const DEFAULT_APP_CONFIG = {
     companyName: 'PreoCrypto',
-    supportEmail: 'support@example.com', // TODO: replace with your real email
-    supportPhone: '+000 000 0000',       // TODO: replace with your real phone
+    supportEmail: contacts.email,
+    supportPhone: contacts.phone,
     // Base URL for redirects/webhooks (used by PayHero)
     baseUrl: 'https://yourapp.vercel.app'
   };
@@ -49,12 +68,15 @@
 
   // API base & helper so frontend on 5500 can call backend on 5000
   try {
+    const isLocalhost = ['localhost', '127.0.0.1'].includes(location.hostname);
+    const isVercel = location.hostname.endsWith('.vercel.app');
     const samePort = (location.port === '5000');
     const defaultBase = `${location.protocol}//${location.hostname}:5000`;
     const savedBase = localStorage.getItem('preo_api_base');
     const configured = (typeof window.API_BASE === 'string' && window.API_BASE.length > 0) ? window.API_BASE : null;
-    const base = samePort ? '' : (configured || savedBase || defaultBase);
-    window.API_BASE = base; // '' when same-origin (5000), else absolute
+    // On Vercel or any non-localhost host, prefer same-origin serverless functions (empty base)
+    const base = (isVercel || (!isLocalhost && !samePort)) ? '' : (samePort ? '' : (configured || savedBase || defaultBase));
+    window.API_BASE = base; // '' => same-origin (Vercel functions under /api)
 
     window.apiFetch = async function(path, options) {
       const urlPrimary = (path.startsWith('http://') || path.startsWith('https://')) ? path : (window.API_BASE || '') + path;

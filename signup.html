@@ -649,10 +649,23 @@
       };
 
       // Register the account on the backend so login works
+      // Map location string to country code for server
+      function countryFromLocation(loc) {
+        const l = (loc || '').toLowerCase();
+        if (l.includes('kenya') || l.includes('nairobi') || l.includes('ke')) return 'KE';
+        if (l.includes('nigeria') || l.includes('lagos') || l.includes('ng')) return 'NG';
+        if (l.includes('south africa') || l.includes('johannesburg') || l.includes('za')) return 'ZA';
+        if (l.includes('ghana') || l.includes('accra') || l.includes('gh')) return 'GH';
+        if (l.includes('united states') || l.includes('usa') || l.includes('us')) return 'US';
+        if (l.includes('united kingdom') || l.includes('uk') || l.includes('gb') || l.includes('london')) return 'GB';
+        return '';
+      }
+      const countryCode = countryFromLocation(userData.location);
+
       (window.apiFetch || fetch)('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: userData.username, password: userData.password, name: userData.username, email: userData.email })
+        body: JSON.stringify({ username: userData.username, password: userData.password, name: userData.username, email: userData.email, country: countryCode })
       })
       .then(async res => {
         if (!res.ok) {
