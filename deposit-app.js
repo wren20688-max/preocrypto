@@ -34,9 +34,6 @@ function initializeDeposit() {
     loadBalanceInfo();
     renderRecentDeposits();
   }, 2000);
-
-  // Ensure push subscription (optional)
-  ensurePushSubscription(depositUser.email).catch(() => {});
 }
 
 function loadBalanceInfo() {
@@ -109,10 +106,83 @@ function showMethodFields(method) {
       break;
     case 'crypto':
       document.getElementById('cryptoFields').style.display = 'block';
+      // Update address display for default selection
+      updateCryptoAddress();
       break;
     case 'paypal':
       document.getElementById('paypalFields').style.display = 'block';
       break;
+  }
+}
+
+// Map of deposit crypto addresses (as provided by user)
+const CRYPTO_ADDRESSES = {
+  bitcoin: {
+    address: '1CYRe7kTYVmQEmswhDyh6kyjDhJRoB9GEm',
+    network: 'Bitcoin (BTC)'
+  },
+  ethereum: {
+    address: '0xcc6371a1f224ac0e655b6c787be086444be2f674',
+    network: 'Ethereum (ERC20)'
+  },
+  usdt_trc20: {
+    address: 'TUmex3LPfRF8Zjbx8DUw6XS7YfDmuoXKuz',
+    network: 'Tether USDT (TRC20)'
+  },
+  trx_trc20: {
+    address: 'TUmex3LPfRF8Zjbx8DUw6XS7YfDmuoXKuz',
+    network: 'Tron (TRC20)'
+  }
+};
+
+function updateCryptoAddress() {
+  const typeEl = document.getElementById('cryptoType');
+  const addrBox = document.getElementById('cryptoAddressBox');
+  const addrVal = document.getElementById('cryptoAddressValue');
+  if (!typeEl || !addrBox || !addrVal) return;
+  const selected = typeEl.value;
+  const entry = CRYPTO_ADDRESSES[selected];
+  const address = entry?.address || '';
+  addrVal.textContent = address ? address : 'Select a cryptocurrency to view the wallet address.';
+  const netEl = document.getElementById('cryptoNetworkValue');
+  if (netEl) netEl.textContent = entry?.network ? `Network: ${entry.network}` : '';
+  renderCryptoQr(address);
+}
+
+// Listen for crypto selection changes
+document.addEventListener('change', (e) => {
+  if (e.target && e.target.id === 'cryptoType') {
+    updateCryptoAddress();
+  }
+});
+
+// Copy address
+document.addEventListener('click', (e) => {
+  if (e.target && e.target.id === 'copyAddressBtn') {
+    const typeEl = document.getElementById('cryptoType');
+    const entry = CRYPTO_ADDRESSES[typeEl.value];
+    const address = entry?.address || '';
+    if (address) {
+      navigator.clipboard?.writeText(address).then(() => {
+        showNotification('📋 Address copied to clipboard', 'success');
+      }).catch(() => {
+        showNotification('⚠️ Could not copy address', 'danger');
+      });
+    }
+  }
+});
+
+function renderCryptoQr(address) {
+  const qrBox = document.getElementById('cryptoQr');
+  if (!qrBox) return;
+  qrBox.innerHTML = '';
+  if (window.QRCode) {
+    new QRCode(qrBox, { text: address || ' ', width: 160, height: 160 });
+  } else if (address) {
+    const img = document.createElement('img');
+    img.src = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(address)}`;
+    img.alt = 'QR Code';
+    qrBox.appendChild(img);
   }
 }
 
@@ -192,7 +262,10 @@ function processDepositSuccess(amount, method, depositUser) {
   } else if (method === 'credit_card') {
     methodDetails = `${document.getElementById('cardType').value.toUpperCase()}`;
   } else if (method === 'crypto') {
-    methodDetails = `${document.getElementById('cryptoType').value.toUpperCase()}`;
+    const cryptoType = document.getElementById('cryptoType').value;
+    const entry = CRYPTO_ADDRESSES[cryptoType];
+    const address = entry?.address || '';
+    methodDetails = `${cryptoType.toUpperCase()} (${address ? address.slice(0,6)+'…'+address.slice(-4) : 'N/A'})`;
   } else if (method === 'paypal') {
     methodDetails = 'PayPal';
   }
@@ -285,45 +358,6 @@ function renderRecentDeposits() {
 
     container.appendChild(div);
   });
-}
-
-// =====================
-// Push Notifications
-// =====================
-async function ensurePushSubscription(userEmail) {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
-  if (Notification && Notification.permission === 'denied') return;
-
-  // Register service worker
-  const reg = await navigator.serviceWorker.register('/sw.js');
-  await navigator.serviceWorker.ready;
-
-  // Get server public key
-  const keyResp = await fetch('/api/notifications/public-key');
-  const { publicKey } = await keyResp.json();
-  if (!publicKey) return; // push disabled on server
-
-  const sub = await reg.pushManager.getSubscription();
-  if (!sub) {
-    const convertedKey = urlBase64ToUint8Array(publicKey);
-    const newSub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: convertedKey });
-    await fetch('/api/notifications/subscribe', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ subscription: newSub.toJSON(), user_email: userEmail })
-    });
-  }
-}
-
-function urlBase64ToUint8Array(base64String) {
-  const padding = '='.repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-  return outputArray;
 }
 
 function showNotification(message, type = 'info') {

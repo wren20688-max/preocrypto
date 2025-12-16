@@ -2,23 +2,16 @@
   "name": "preocrypto-admin",
   "version": "1.0.0",
   "description": "PreoCrypto Admin Backend",
-  "type": "module",
-  "main": "backend/server.js",
+  "main": "server.js",
   "scripts": {
-    "start": "node backend/server.js",
-    "dev": "nodemon backend/server.js"
+    "start": "node server.js",
+    "dev": "nodemon server.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "cors": "^2.8.5",
     "body-parser": "^1.20.2",
-    "node-fetch": "^3.3.2",
-    "dotenv": "^16.4.5",
-    "sqlite3": "^5.1.7",
-    "uuid": "^9.0.1",
-    "web-push": "^3.6.6",
-    "bcryptjs": "^2.4.3",
-    "jsonwebtoken": "^9.0.2"
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.3"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"

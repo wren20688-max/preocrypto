@@ -276,7 +276,8 @@
       <h3>Welcome to PreoCrypto!</h3>
       <p>Your account has been successfully created and verified.</p>
       <p style="font-size: 0.95em; opacity: 0.9;">You now have a $10,000 demo account ready to use.</p>
-      <a href="login.html" class="btn-success-login">Go to Login & Start Trading</a>
+      <p id="autoRedirectMsg" style="margin-top:12px;">Redirecting to your dashboard…</p>
+      <a href="dashboard.html" class="btn-success-login">Go to Dashboard Now</a>
       <a href="index.html" class="btn-secondary-link">Back to Home</a>
     </div>
 
@@ -424,6 +425,9 @@
 
     </form>
   </div>
+
+  <!-- Load global config to enable apiFetch and API_BASE -->
+  <script src="config.js"></script>
 
   <script>
     let currentStep = 1;
@@ -632,30 +636,59 @@
       if (!validateStep(5)) return;
 
       const userData = {
-        username: document.getElementById('username').value,
-        email: document.getElementById('signupEmail').value,
+        username: document.getElementById('username').value.trim(),
+        email: document.getElementById('signupEmail').value.trim(),
         password: document.getElementById('signupPassword').value,
-        phone: document.getElementById('phoneNumber').value,
-        location: document.getElementById('locationDisplay').value,
+        phone: document.getElementById('phoneNumber').value.trim(),
+        location: document.getElementById('locationDisplay').value.trim(),
         idType: document.getElementById('idType').value,
-        idNumber: document.getElementById('idNumber').value,
+        idNumber: document.getElementById('idNumber').value.trim(),
         dateOfBirth: document.getElementById('dateOfBirth').value,
         created: Date.now(),
         verified: true
       };
 
-      const users = JSON.parse(localStorage.getItem('users') || '[]');
-      users.push(userData);
-      localStorage.setItem('users', JSON.stringify(users));
+      // Register the account on the backend so login works
+      (window.apiFetch || fetch)('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: userData.username, password: userData.password, name: userData.username, email: userData.email })
+      })
+      .then(async res => {
+        if (!res.ok) {
+          const d = await res.json().catch(() => ({ error: 'Registration failed' }));
+          throw new Error(d.error || 'Registration failed');
+        }
+        return res.json();
+      })
+      .then(data => {
+        // Optionally store token and basic user info
+        try {
+          localStorage.setItem('preo_token', data.token);
+          localStorage.setItem('preo_user', JSON.stringify({ username: data.user.username, email: userData.email, role: 'trader' }));
+        } catch {}
 
-      // Auto-create demo account
-      const demoAccounts = JSON.parse(localStorage.getItem('demo_accounts') || '{}');
-      demoAccounts[userData.username] = { balance: 10000, created: Date.now() };
-      localStorage.setItem('demo_accounts', JSON.stringify(demoAccounts));
+        // Persist non-critical signup metadata locally (for UX only)
+        const users = JSON.parse(localStorage.getItem('users') || '[]');
+        users.push(userData);
+        localStorage.setItem('users', JSON.stringify(users));
 
-      // Show success screen
-      document.getElementById('signupForm').style.display = 'none';
-      document.getElementById('successScreen').classList.add('show');
+        const demoAccounts = JSON.parse(localStorage.getItem('demo_accounts') || '{}');
+        demoAccounts[userData.username] = { balance: 10000, created: Date.now() };
+        localStorage.setItem('demo_accounts', JSON.stringify(demoAccounts));
+
+        // Show success screen and auto-redirect to dashboard
+        document.getElementById('signupForm').style.display = 'none';
+        document.getElementById('successScreen').classList.add('show');
+        const msg = document.getElementById('autoRedirectMsg');
+        if (msg) msg.textContent = 'Redirecting to your dashboard…';
+        setTimeout(() => { window.location.href = 'dashboard.html'; }, 1200);
+      })
+      .catch(err => {
+        showError(5, err.message);
+        const debug = document.getElementById('signupDebug');
+        if (debug) debug.textContent = 'Signup error: ' + err.message;
+      });
     });
 
     // Attach listeners to Continue buttons to log and ensure nextStep is invoked

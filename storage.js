@@ -49,22 +49,6 @@ const storage = {
     return this.getUser() !== null;
   },
 
-  // User prefs: locale & timezone
-  getUserPrefs: function() {
-    try {
-      const prefs = JSON.parse(localStorage.getItem('preo_prefs') || '{}');
-      return prefs;
-    } catch { return {} }
-  },
-
-  setUserPrefs: function(prefs) {
-    try {
-      const current = this.getUserPrefs();
-      const merged = { ...current, ...prefs };
-      localStorage.setItem('preo_prefs', JSON.stringify(merged));
-    } catch {}
-  },
-
   // Token management
   getToken: function() {
     return localStorage.getItem('preo_token');

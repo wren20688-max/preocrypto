@@ -96,7 +96,8 @@
         </div>
         <div class="form-group">
           <label>Volume per Trade</label>
-          <input type="number" id="botVolume" value="0.1" min="0.01" step="0.01">
+          <input type="number" id="botVolume" value="0.2" min="0.01" step="0.01">
+          <div class="form-helper">Minimum trade ≈ $15 notional</div>
         </div>
         <div class="form-group">
           <label>Max Daily Trades</label>
@@ -211,6 +212,17 @@
       addLog('💰 Account: ' + (tradingAccount === 'demo' ? 'Demo' : 'Real'));
       addLog('🎯 Max trades today: ' + document.getElementById('botMaxTrades').value);
 
+      // Enforce approximate $15 minimum trade notional
+      const vol = parseFloat(document.getElementById('botVolume').value) || 0;
+      // Approximate notional using 100 as base for FX lot proxy if price unavailable
+      const approxNotional = vol * 100;
+      if (approxNotional < 15) {
+        botRunning = false;
+        updateUI();
+        addLog('❌ Minimum trade amount is $15. Increase volume.');
+        return;
+      }
+
       simulateBotTrade();
     }
 
@@ -219,6 +231,8 @@
 
       const pair = document.getElementById('botPair').value;
       const volume = parseFloat(document.getElementById('botVolume').value);
+      // Block trades below $15 notional (approximate in runtime too)
+      if ((volume * 100) < 15) { addLog('⚠️ Skipped trade: below $15 minimum'); setTimeout(simulateBotTrade, 3000); return; }
       const strategy = document.getElementById('botStrategy').value;
       const tradeType = Math.random() > 0.5 ? 'BUY' : 'SELL';
       const currentBalance = storage.getBalance(tradingAccount);

@@ -116,17 +116,6 @@
             <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 6px;">Minimum deposit: $10</div>
           </div>
 
-          <!-- Gateway Credential (Testing/Multiple Accounts) -->
-          <div style="display: none;" id="credSelectorWrap">
-            <label for="payheroCred" style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 8px; color: var(--text-secondary);">Gateway Credential</label>
-            <select id="payheroCred" style="padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-secondary); color: var(--text-primary); width: 100%;">
-              <option value="0">Credential 1</option>
-              <option value="1">Credential 2</option>
-              <option value="2">Credential 3</option>
-            </select>
-            <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 6px;">For testing multiple PayHero accounts. Hidden in production.</div>
-          </div>
-
           <div>
             <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 8px; color: var(--text-secondary);">Selected Method</label>
             <div id="selectedMethod" style="padding: 12px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: var(--radius-md); color: var(--text-primary); font-weight: 600;">🏦 Bank Transfer</div>
@@ -155,9 +144,19 @@
             <select id="cryptoType" style="padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-secondary); color: var(--text-primary); width: 100%; margin-bottom: var(--spacing-md);">
               <option value="bitcoin">Bitcoin (BTC)</option>
               <option value="ethereum">Ethereum (ETH)</option>
-              <option value="usdc">USD Coin (USDC)</option>
-              <option value="usdt">Tether (USDT)</option>
+              <option value="usdt_trc20">Tether (USDT) — Tron (TRC20)</option>
+              <option value="trx_trc20">TRON (TRX) — Tron (TRC20)</option>
             </select>
+            <div id="cryptoAddressBox" style="padding: var(--spacing-md); background: var(--bg-tertiary); border-radius: var(--radius-md); border: 1px dashed var(--border-color);">
+              <div style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 6px;">Wallet Address</div>
+              <div id="cryptoAddressValue" style="font-family: monospace; word-break: break-all; font-size: 13px; color: var(--text-primary);"></div>
+              <div id="cryptoNetworkValue" style="font-size: 12px; color: var(--text-tertiary); margin-top: 6px;"></div>
+              <div style="display:flex; gap:12px; align-items:center; margin-top:10px;">
+                <div id="cryptoQr" style="width: 160px; height: 160px; background: #0b1220; border: 1px solid var(--border-color); border-radius: 8px; display:flex; align-items:center; justify-content:center;"></div>
+                <button id="copyAddressBtn" type="button" class="btn" style="height:40px;">Copy Address</button>
+              </div>
+              <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 6px;">Do not send NFTs. Match the exact network shown.</div>
+            </div>
           </div>
 
           <div id="paypalFields" class="method-fields" style="display: none;">
@@ -246,28 +245,8 @@
   <!-- Scripts -->
   <script src="storage.js"></script>
   <script src="pages.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="payhero-integration.js"></script>
   <script src="deposit-app.js"></script>
-  <script>
-    // Expose credential selector when multiple creds configured
-    (function(){
-      try {
-        const wrap = document.getElementById('credSelectorWrap');
-        const sel = document.getElementById('payheroCred');
-        const hasMulti = !!(localStorage.getItem('dev_showCredSelector') === '1');
-        if (wrap && sel) {
-          // Show selector if developer enables it or if URL has ?showCred=1
-          const urlParams = new URLSearchParams(window.location.search);
-          const show = hasMulti || urlParams.get('showCred') === '1';
-          if (show) wrap.style.display = 'block';
-          const saved = parseInt(localStorage.getItem('payheroCredIndex') || '0', 10) || 0;
-          sel.value = String(saved);
-          sel.addEventListener('change', () => {
-            localStorage.setItem('payheroCredIndex', sel.value);
-          });
-        }
-      } catch {}
-    })();
-  </script>
 </body>
 </html>

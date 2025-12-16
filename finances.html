@@ -8,7 +8,6 @@
 </head>
 <body>
   <header class="top-nav">
-  <meta name="api-base" content="">
     <div class="nav-left">
       <button id="menuToggle" class="menu-toggle">☰</button>
       <div class="logo" style="width: 32px; height: 32px; margin: 0 8px;">
@@ -80,15 +79,10 @@
         <div class="form-group">
           <label for="depositAmount">Amount (USD)</label>
           <input type="number" id="depositAmount" placeholder="100.00" min="10" step="0.01">
-          <div class="form-helper">Minimum deposit: $10</div>
+          <div class="form-helper">Minimum deposit: $10 (M-Pesa) / $25 (Crypto)</div>
         </div>
-        <div class="form-group">
-          <label for="depositPhone">M-Pesa Phone Number</label>
-          <input type="tel" id="depositPhone" placeholder="254712345678">
-          <div class="form-helper">Format: 2547XXXXXXXX</div>
-        </div>
-        <button class="btn btn-primary" style="width: 100%;" onclick="quickDepositMpesa()">
-          Send M-Pesa STK Push
+        <button class="btn btn-primary" style="width: 100%;" onclick="processDeposit()">
+          Add Funds
         </button>
       </section>
 
@@ -227,39 +221,10 @@
   </div>
 
   <script src="storage.js"></script>
+  <script src="config.js"></script>
   <script>
     let currentDepositMethod = '';
     let currentAccount = 'demo'; // Track current account
-    let walletAccounts = { demo: null, real: null }; // Backend-fetched accounts cache
-
-    function apiBase() {
-      try {
-        const { protocol, hostname, port } = window.location;
-        const override = localStorage.getItem('api_base');
-        if (override && /^https?:\/\//i.test(override)) return override.replace(/\/$/, '');
-        if (String(port) === '3000') return '';
-        if (hostname) return `${protocol}//${hostname}:3000`;
-        return 'http://localhost:3000';
-      } catch { return 'http://localhost:3000'; }
-    }
-
-    async function apiFetchAuth(path, options = {}) {
-      const token = storage.getToken && storage.getToken();
-      if (!token) {
-        window.location.href = 'index.html';
-        throw new Error('Not authenticated');
-      }
-      const headers = Object.assign({ 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, options.headers || {});
-      const url = `${apiBase()}${path}`;
-      const res = await fetch(url, { ...options, headers });
-      const text = await res.text();
-      let json; try { json = text ? JSON.parse(text) : {}; } catch { json = { raw: text }; }
-      if (!res.ok) {
-        const message = json?.error || json?.message || `HTTP ${res.status}`;
-        throw new Error(message);
-      }
-      return json;
-    }
 
     document.addEventListener('DOMContentLoaded', () => {
       const user = storage.getUser();
@@ -273,10 +238,10 @@
       setupMenuToggle();
       updateAccountDisplay();
       
-      // Refresh balances every 5 seconds
+      // Refresh balances every 2 seconds
       setInterval(() => {
         loadBalances();
-      }, 5000);
+      }, 2000);
       
       document.querySelectorAll('.modal-close').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -287,31 +252,6 @@
       document.getElementById('withdrawMethod').addEventListener('change', (e) => {
         updateWithdrawalDetails(e.target.value);
       });
-
-      // Handle PayHero callback to reflect successful deposits
-      try {
-        const params = new URLSearchParams(window.location.search);
-        const status = (params.get('payment_status') || params.get('status') || '').toLowerCase();
-        const amountStr = params.get('amount');
-        const credited = status === 'successful' && amountStr && !isNaN(parseFloat(amountStr));
-        if (credited) {
-          const amount = parseFloat(amountStr);
-          const realBalance = parseFloat(localStorage.getItem('accountData_real_balance') || '0');
-          localStorage.setItem('accountData_real_balance', String(realBalance + amount));
-          // Also reflect in storage helper
-          storage.setBalance(realBalance + amount, 'real');
-          // Clean query to avoid re-adding on reload
-          const url = new URL(window.location.href);
-          url.searchParams.delete('payment_status');
-          url.searchParams.delete('amount');
-          url.searchParams.delete('tx_id');
-          window.history.replaceState({}, document.title, url.pathname);
-          // Notify & refresh
-          alert(`Deposit of $${amount.toFixed(2)} credited to your Real account.`);
-          loadBalances();
-          loadTransactions();
-        }
-      } catch {}
     });
 
     function openDepositModal(method) {
@@ -352,9 +292,9 @@
       document.getElementById('tab-real').classList.toggle('active', currentAccount === 'real');
       document.getElementById('tab-real').classList.toggle('btn-secondary', currentAccount !== 'real');
 
-      // Prefer backend-fetched balances, fallback to local
-      const demoBalance = walletAccounts.demo?.balance ?? parseFloat(localStorage.getItem('accountData_demo_balance') || '10000');
-      const realBalance = walletAccounts.real?.balance ?? parseFloat(localStorage.getItem('accountData_real_balance') || '0');
+      // Get balances from dashboard
+      const demoBalance = parseFloat(localStorage.getItem('accountData_demo_balance') || '10000');
+      const realBalance = parseFloat(localStorage.getItem('accountData_real_balance') || '0');
 
       // Update current balance display
       if (currentAccount === 'demo') {
@@ -435,70 +375,38 @@
 
     function processDeposit() {
       const amount = parseFloat(document.getElementById('depositAmount')?.value || 0);
-      if (!amount || amount < 10) {
-        alert('Minimum deposit is $10');
-        return;
-      }
-
-      const currentBalance = parseFloat(localStorage.getItem('balance') || '10000');
-      const newBalance = currentBalance + amount;
-      localStorage.setItem('balance', newBalance);
-
-      alert('Deposit of $' + amount.toFixed(2) + ' added to your account!');
-      loadBalances();
-    }
-
-    async function processWithdraw() {
-      const amount = parseFloat(document.getElementById('withdrawAmount')?.value || 0);
-      if (!amount || amount < 30) {
-        alert('Minimum withdrawal is $30');
-        return;
-      }
-      // Withdrawals only from REAL account
-      if (currentAccount !== 'real') {
-        alert('Withdrawals are allowed from Real accounts only. Switch to Real and try again.');
-        return;
-      }
-      try {
-        const resp = await apiFetchAuth('/api/trades/withdraw', {
-          method: 'POST',
-          body: JSON.stringify({ amount, accountType: 'real' })
-        });
-        const user = JSON.parse(localStorage.getItem('preo_user') || '{}');
-        const withdrawals = JSON.parse(localStorage.getItem('withdrawals') || '[]');
-        withdrawals.push({ user: user.email || user.username, amount, method: 'M-Pesa', status: resp?.status || 'pending', timestamp: Date.now() });
-        localStorage.setItem('withdrawals', JSON.stringify(withdrawals));
-        alert(resp?.message || ('Withdrawal request of $' + amount.toFixed(2) + ' submitted from Real account!'));
+      if (!amount || amount < 10) { alert('Minimum deposit is $10'); return; }
+      // For crypto, enforce $25 (this quick deposit defaults to M-Pesa unless methods selected)
+      // Apply to real account by default
+      (window.apiFetch || fetch)('/api/payment/deposit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('preo_token')||'') },
+        body: JSON.stringify({ amount, method: 'mpesa', account: currentAccount === 'real' ? 'real' : 'real' })
+      }).then(async res => {
+        if (!res.ok) { const d = await res.json().catch(()=>({error:'Deposit failed'})); throw new Error(d.error); }
+        return res.json();
+      }).then(() => {
+        const key = 'accountData_real_balance';
+        const bal = parseFloat(localStorage.getItem(key) || '0');
+        localStorage.setItem(key, (bal + amount).toString());
+        alert('Deposit of $' + amount.toFixed(2) + ' initiated!');
         loadBalances();
-        loadTransactions();
-      } catch (e) {
-        alert('Withdrawal failed: ' + e.message);
-      }
+      }).catch(err => alert('Deposit error: ' + err.message));
     }
 
-    function normalizeMsisdn(input) {
-      if (!input) return '';
-      let v = String(input).replace(/\s|\-/g, '');
-      if (v.startsWith('+')) v = v.slice(1);
-      if (v.startsWith('0') && (v[1] === '7' || v[1] === '1')) v = '254' + v.slice(1);
-      return v;
-    }
-
-    async function quickDepositMpesa() {
-      const amount = parseFloat(document.getElementById('depositAmount')?.value || 0);
-      const rawPhone = document.getElementById('depositPhone')?.value || '';
-      const phone = normalizeMsisdn(rawPhone);
-      if (!amount || amount < 10) {
-        alert('Minimum deposit is $10');
-        return;
-      }
-      if (!phone || !/^2547\d{8}$/.test(phone)) {
-        alert('Enter a valid M-Pesa phone in format 2547XXXXXXXX');
-        return;
-      }
-      // Redirect to Payment Methods page with M-Pesa preselected
-      const params = new URLSearchParams({ method: 'mpesa', amount: String(amount), phone: phone, auto: 'true' });
-      window.location.href = `payment-methods.html?${params.toString()}`;
+    function processWithdraw() {
+      const amount = parseFloat(document.getElementById('withdrawAmount')?.value || 0);
+      if (!amount || amount < 30) { alert('Minimum withdrawal is $30'); return; }
+      (window.apiFetch || fetch)('/api/payment/withdrawal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('preo_token')||'') },
+        body: JSON.stringify({ amount, method: 'mpesa', account: currentAccount === 'real' ? 'real' : 'real' })
+      }).then(async res => {
+        if (!res.ok) { const d = await res.json().catch(()=>({error:'Withdrawal failed'})); throw new Error(d.error); }
+        return res.json();
+      }).then(() => {
+        alert('Withdrawal request of $' + amount.toFixed(2) + ' submitted!');
+      }).catch(err => alert('Withdrawal error: ' + err.message));
     }
 
     function selectPaymentMethod(method, element) {
@@ -508,58 +416,73 @@
       }
     }
 
-    async function loadBalances() {
-      try {
-        const resp = await apiFetchAuth('/api/trades/accounts', { method: 'GET' });
-        const accounts = resp?.accounts || [];
-        const demoAcc = accounts.find(a => a.type === 'demo');
-        const realAcc = accounts.find(a => a.type === 'real');
-        walletAccounts.demo = demoAcc || { balance: 10000, equity: 10000 };
-        walletAccounts.real = realAcc || { balance: 0, equity: 0 };
-
-        const demoBalance = walletAccounts.demo.balance || 10000;
-        const realBalance = walletAccounts.real.balance || 0;
-        const totalBalance = demoBalance + realBalance;
-        
-        document.getElementById('totalBalance').textContent = '$' + totalBalance.toLocaleString('en-US', {minimumFractionDigits: 2});
-        document.getElementById('demoBalance').textContent = '$' + demoBalance.toLocaleString('en-US', {minimumFractionDigits: 2});
-        document.getElementById('realBalance').textContent = '$' + realBalance.toLocaleString('en-US', {minimumFractionDigits: 2});
-        
-        updateAccountDisplay();
-      } catch (e) {
-        // Fallback to local storage
-        const demoBalance = parseFloat(localStorage.getItem('accountData_demo_balance') || localStorage.getItem('balance') || '10000');
-        const realBalance = parseFloat(localStorage.getItem('accountData_real_balance') || '0');
-        const totalBalance = demoBalance + realBalance;
-        document.getElementById('totalBalance').textContent = '$' + totalBalance.toLocaleString('en-US', {minimumFractionDigits: 2});
-        document.getElementById('demoBalance').textContent = '$' + demoBalance.toLocaleString('en-US', {minimumFractionDigits: 2});
-        document.getElementById('realBalance').textContent = '$' + realBalance.toLocaleString('en-US', {minimumFractionDigits: 2});
-        updateAccountDisplay();
-      }
+    function loadBalances() {
+      const demoBalance = parseFloat(localStorage.getItem('accountData_demo_balance') || localStorage.getItem('balance') || '10000');
+      const realBalance = parseFloat(localStorage.getItem('accountData_real_balance') || '0');
+      const totalBalance = demoBalance + realBalance;
+      
+      document.getElementById('totalBalance').textContent = '$' + totalBalance.toLocaleString('en-US', {minimumFractionDigits: 2});
+      document.getElementById('demoBalance').textContent = '$' + demoBalance.toLocaleString('en-US', {minimumFractionDigits: 2});
+      document.getElementById('realBalance').textContent = '$' + realBalance.toLocaleString('en-US', {minimumFractionDigits: 2});
+      
+      // Update current account display
+      updateAccountDisplay();
     }
 
-    async function loadTransactions() {
+    function loadTransactions() {
       const el = document.getElementById('transactionList');
       if (!el) return;
+      const token = localStorage.getItem('preo_token') || '';
+      let transactions = [];
 
-      // Try backend first
-      try {
-        const resp = await apiFetchAuth('/api/trades/transactions', { method: 'GET' });
-        const txs = Array.isArray(resp?.transactions) ? resp.transactions : [];
-        if (txs.length > 0) {
-          const mapped = txs.map(t => {
-            const dateStr = (t.createdAt ? new Date(t.createdAt) : new Date()).toISOString().split('T')[0];
-            const isCredit = /deposit|trade_win|credit/i.test(t.type || '') || (t.direction === 'credit');
-            const amountStr = `${isCredit ? '+' : '-'}$${Number(t.amount || 0).toFixed(2)}`;
-            return {
-              date: dateStr,
-              type: t.type || 'Transaction',
-              method: t.method || (t.account_type ? String(t.account_type).toUpperCase() : ''),
-              amount: amountStr,
-              status: t.status || 'Completed'
-            };
-          });
-          el.innerHTML = mapped.map(t => `
+      fetch('/api/transactions?limit=100', { headers: { 'Authorization': 'Bearer ' + token } })
+        .then(r => r.ok ? r.json() : [])
+        .then(serverTx => {
+          if (Array.isArray(serverTx)) {
+            transactions = transactions.concat(serverTx.map(t => {
+              const method = t.method || t.pair || t.type;
+              let amountStr = '';
+              if (typeof t.amount === 'number') amountStr = (t.type === 'deposit' ? '+' : t.type === 'withdrawal' ? '-' : '') + '$' + Math.abs(t.amount).toFixed(2);
+              if (!amountStr && typeof t.pnl === 'number') amountStr = (t.pnl >= 0 ? '+' : '-') + '$' + Math.abs(t.pnl).toFixed(2);
+              return {
+                date: new Date(t.timestamp).toISOString().split('T')[0],
+                type: t.type.replace('_', ' ').toUpperCase(),
+                method: method,
+                amount: amountStr || '$0.00',
+                status: (t.status || 'Completed').toString()
+              };
+            }));
+          }
+
+          // Add local closed trades
+          const tradesData = localStorage.getItem('preo_trades');
+          if (tradesData) {
+            try {
+              const trades = JSON.parse(tradesData);
+              transactions = transactions.concat(trades
+                .filter(trade => trade.status === 'closed')
+                .map(trade => ({
+                  date: new Date(trade.timestamp).toISOString().split('T')[0],
+                  type: 'TRADE CLOSED',
+                  method: trade.pair,
+                  amount: (trade.pnl >= 0 ? '+' : '-') + '$' + Math.abs(trade.pnl || 0).toFixed(2),
+                  status: 'Completed'
+                })));
+            } catch (e) {}
+          }
+
+          transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+          if (transactions.length === 0) {
+            el.innerHTML = `
+              <div style="padding: 30px; text-align: center; color: var(--text-secondary);">
+                <p>No transactions yet. Start trading to see your activity here.</p>
+                <button onclick=\"loadDemoFinanceTransactions()\" style=\"margin-top: 15px; padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;\">Load Demo Data</button>
+              </div>`;
+            return;
+          }
+
+          el.innerHTML = transactions.map(t => `
             <div style="padding: var(--spacing-md); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
               <div>
                 <strong>${t.type}</strong>
@@ -569,93 +492,11 @@
                 <strong style="color: ${t.amount.startsWith('+') ? 'var(--success)' : 'var(--danger)'}">${t.amount}</strong>
                 <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">${t.status}</div>
               </div>
-            </div>
-          `).join('');
-          return;
-        }
-      } catch (e) {
-        // Fallback to local storage below
-      }
-
-      // Fallback: local storage aggregation
-      const user = JSON.parse(localStorage.getItem('preo_user') || '{}');
-      const isMarketer = user.isMarketer || false;
-      const userEmail = user.email || user.username;
-      let transactions = [];
-
-      const tradesData = localStorage.getItem('preo_trades');
-      if (tradesData) {
-        try {
-          const trades = JSON.parse(tradesData);
-          transactions = transactions.concat(trades
-            .filter(trade => trade.status === 'closed')
-            .map(trade => ({
-              date: new Date(trade.timestamp).toISOString().split('T')[0],
-              type: `Trade Closed - ${trade.pnl >= 0 ? 'Profit' : 'Loss'} of $${Math.abs(trade.pnl || 0).toFixed(2)}`,
-              method: trade.pair,
-              amount: (trade.pnl >= 0 ? '+' : '') + '$' + Math.abs(trade.pnl || 0).toFixed(2),
-              status: 'Completed'
-            })));
-        } catch (e) { }
-      }
-
-      const depositsData = localStorage.getItem('deposits');
-      if (depositsData) {
-        try {
-          const deposits = JSON.parse(depositsData);
-          const userDeposits = deposits.filter(d => d.user === userEmail || d.user === user.username);
-          transactions = transactions.concat(userDeposits.map(d => ({
-            date: new Date(d.timestamp).toISOString().split('T')[0],
-            type: 'Deposit',
-            method: d.method,
-            amount: '+$' + (d.amount || 0).toFixed(2),
-            status: d.status === 'completed' ? 'Completed' : 'Pending'
-          })));
-        } catch (e) { }
-      }
-
-      const withdrawalsData = localStorage.getItem('withdrawals');
-      if (withdrawalsData) {
-        try {
-          const withdrawals = JSON.parse(withdrawalsData);
-          transactions = transactions.concat(withdrawals
-            .filter(w => w.user === userEmail || w.user === user.username)
-            .map(w => ({
-              date: new Date(w.timestamp).toISOString().split('T')[0],
-              type: 'Withdrawal',
-              method: w.method,
-              amount: '-$' + (w.amount || 0).toFixed(2),
-              status: isMarketer ? 'Completed' : 'Pending'
-            })));
-        } catch (e) { }
-      }
-
-      transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-      if (transactions.length === 0) {
-        el.innerHTML = `
-          <div style="padding: 30px; text-align: center; color: var(--text-secondary);">
-            <p>No transactions yet. Start trading to see your activity here.</p>
-            <button onclick="loadDemoFinanceTransactions()" style="margin-top: 15px; padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
-              Load Demo Data
-            </button>
-          </div>
-        `;
-        return;
-      }
-
-      el.innerHTML = transactions.map(t => `
-        <div style="padding: var(--spacing-md); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
-          <div>
-            <strong>${t.type}</strong>
-            <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">${t.date} • ${t.method}</div>
-          </div>
-          <div style="text-align: right;">
-            <strong style="color: ${t.amount.startsWith('+') ? 'var(--success)' : 'var(--danger)'}">${t.amount}</strong>
-            <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">${t.status}</div>
-          </div>
-        </div>
-      `).join('');
+            </div>`).join('');
+        })
+        .catch(() => {
+          el.innerHTML = '<div class="empty-state">Failed to load transactions.</div>';
+        });
     }
 
     function setupMenuToggle() {
@@ -728,20 +569,20 @@
       loadTransactions();
       alert('Demo data loaded! You can now see sample transactions.');
     }
+  </script>
   <script>
-    // Resolve API base for hosted deployments (Vercel/custom domains)
+    // Footer injection
     (function(){
-      try{
-        const winBase = window.API_BASE || window.__API_BASE || (window.env && window.env.API_BASE);
-        if (winBase && /^https?:\/\//i.test(winBase)) { window.API_BASE = String(winBase).replace(/\/$/, ''); return; }
-        const meta = document.querySelector('meta[name="api-base"]');
-        if (meta && /^https?:\/\//i.test(meta.content)) { window.API_BASE = meta.content.replace(/\/$/, ''); return; }
-        const override = localStorage.getItem('api_base');
-        if (override && /^https?:\/\//i.test(override)) { window.API_BASE = override.replace(/\/$/, ''); return; }
-        const { protocol, hostname, port } = window.location;
-        if (String(port) === '3000') { window.API_BASE = ''; return; }
-        if (hostname) { window.API_BASE = `${protocol}//${hostname}:3000`; return; }
-        window.API_BASE = 'http://localhost:3000';
-      }catch{ window.API_BASE = 'http://localhost:3000'; }
+      const y = new Date().getFullYear();
+      const c = (window.appConfig && window.appConfig.companyName) || 'PreoCrypto';
+      const em = (window.appConfig && window.appConfig.supportEmail) || 'support@example.com';
+      const ph = (window.appConfig && window.appConfig.supportPhone) || '+000 000 0000';
+      const f = document.createElement('footer');
+      f.className = 'site-footer';
+      f.style.cssText = 'margin-top:24px;padding:14px;text-align:center;color:var(--text-tertiary);border-top:1px solid var(--border-color);';
+      f.innerHTML = `© ${y} ${c} • Customer Care: <a href="tel:${ph}" style="color:var(--text-tertiary);">${ph}</a> • <a href="mailto:${em}" style="color:var(--text-tertiary);">${em}</a>`;
+      document.body.appendChild(f);
     })();
   </script>
+</body>
+</html>

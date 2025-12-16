@@ -1,33 +1,3 @@
-// Simple market polling and order actions
-(function(){
-  function getApiBase(){
-    try{
-      if (typeof resolveApiBase === 'function') return resolveApiBase();
-      const { protocol, hostname, port } = window.location;
-      const override = localStorage.getItem('api_base');
-      if (override && /^https?:\/\//i.test(override)) return override.replace(/\/$/, '');
-      if (String(port) === '3000') return '';
-      if (hostname) return `${protocol}//${hostname}:3000`;
-      return 'http://localhost:3000';
-    }catch{ return 'http://localhost:3000'; }
-  }
-  const apiBase = getApiBase();
-  const priceEl = document.getElementById('live-prices');
-  async function fetchPrices(){
-    try{
-      const r = await fetch(`${apiBase}/api/market/prices`);
-      const j = await r.json();
-      if(j?.success){
-        const p = j.prices;
-        if(priceEl){
-          priceEl.textContent = `BTC ${p.BTCUSDT} | ETH ${p.ETHUSDT} | TRX ${p.TRXUSDT}`;
-        }
-      }
-    }catch(e){ /* noop */ }
-  }
-  setInterval(fetchPrices, 1500);
-  fetchPrices();
-})();
 // ============================================================================
 // PreoCrypto - Dashboard Application
 // Handles trading functionality, data management, and UI interactions
@@ -42,13 +12,15 @@ let globalState = {
   selectedPair: 'EUR/USD',
   tradeType: 'BUY',
   chart: null,
-  chartType: 'area',
-  currentTimeframe: 5, // seconds per candle (default 5s)
+  chartType: 'candlestick',
+  // timeframe in seconds: 5 = 5-second bars, 60 = 1-minute, etc.
+  currentTimeframe: 5,
   drawingTool: 'select',
   priceData: {},
   positions: [],
   trades: [],
   user: null,
+  accountCreatedAt: null,
   accountBalances: {
     demo: { balance: 10000, equity: 10000, pnl: 0, positions: 0 },
     real: { balance: 0, equity: 0, pnl: 0, positions: 0 }
@@ -107,63 +79,64 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function initializeApp() {
   let appUser = storage.getUser();
-    if (!appUser) {
-      appUser = { username: 'Guest', email: 'guest@local', id: 'guest', guest: true };
-      try { if (!localStorage.getItem('accountData_demo')) localStorage.setItem('accountData_demo', JSON.stringify({ balance: 10000, equity: 10000, pnl: 0, positions: 0 })); } catch {}
-    try { if (!localStorage.getItem('accountData_demo')) localStorage.setItem('accountData_demo', JSON.stringify({ balance: 10000, equity: 10000, pnl: 0, positions: 0 })); } catch {}
+  if (!appUser) {
+    window.location.href = 'index.html';
+    return;
   }
 
   globalState.user = appUser;
   
-  // Default to 5-second timeframe on page load
+  // Default to 5-second timeframe for lively movement
   globalState.currentTimeframe = 5;
   
   // Setup UI
-  const usernameEl = document.getElementById('username');
-  if (usernameEl) usernameEl.textContent = appUser.username || 'User';
+  document.getElementById('username').textContent = appUser.username;
   
   // Load data
   loadBalanceData();
   renderMarketData();
   
-  // Initialize chart first, then setup listeners
-  setTimeout(() => {
-    initChart();
-    // Setup event listeners AFTER chart is initialized
-    setupEventListeners();
-  }, 500);
+  // Fetch account profile (createdAt) before chart init
+  loadUserProfileCreatedAt()
+    .catch(() => {})
+    .finally(() => {
+      // Initialize chart first, then setup listeners
+      setTimeout(() => {
+        initChart();
+        setupChartControls();
+        // Keep legacy UI listeners (trade, tabs, etc.)
+        setupEventListeners();
+        // Populate recent wins on load
+        updateRecentWinsDisplay();
+        // Start realtime updates aligned to timeframe
+        startRealtimeFeed();
+      }, 300);
+    });
   
-  // Update prices frequently for faster movement
-  setInterval(updatePrices, 300);
-
-  // Prime lists once app is ready
-  setTimeout(() => { try { loadRecentTrades(); loadOpenPositions(); } catch {} }, 800);
-
-  // If guest, show a gentle banner/toast about limited mode
-  if (appUser.guest) {
-    try { showNotification('Guest mode: Log in for real trading and syncing.', 'info'); } catch {}
-  }
+  // Update prices periodically
+  setInterval(updatePrices, 2000);
 }
 
-// Resolve API base robustly for hosted domains (Vercel/custom)
-function resolveApiBase() {
+async function loadUserProfileCreatedAt() {
+  const token = storage.getToken?.() || localStorage.getItem('preo_token');
+  if (!token) return;
   try {
-    // 1) Explicit globals set by hosting/platform
-    const winBase = window.API_BASE || window.__API_BASE || (window.env && window.env.API_BASE);
-    if (winBase && /^https?:\/\//i.test(winBase)) return String(winBase).replace(/\/$/, '');
-    // 2) Meta tag support: <meta name="api-base" content="https://api.example.com">
-    const meta = document.querySelector('meta[name="api-base"]');
-    if (meta && /^https?:\/\//i.test(meta.content)) return meta.content.replace(/\/$/, '');
-    // 3) LocalStorage override for manual config
-    const override = localStorage.getItem('api_base');
-    if (override && /^https?:\/\//i.test(override)) return override.replace(/\/$/, '');
-    // 4) Same-origin when served by backend on :3000
-    const { protocol, hostname, port } = window.location;
-    if (String(port) === '3000') return '';
-    if (hostname) return `${protocol}//${hostname}:3000`;
-    // 5) Fallback to localhost dev
-    return 'http://localhost:3000';
-  } catch { return 'http://localhost:3000'; }
+    const res = await (window.apiFetch || fetch)('/api/user/profile', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!res.ok) return;
+    const profile = await res.json();
+    if (profile && profile.createdAt) {
+      globalState.accountCreatedAt = profile.createdAt;
+      const label = document.getElementById('accountOpenLabel');
+      if (label) {
+        const dt = new Date(profile.createdAt);
+        label.textContent = `Account opened: ${dt.toLocaleString()}`;
+      }
+    }
+  } catch (e) {
+    // ignore
+  }
 }
 
 // ============================================================================
@@ -172,9 +145,9 @@ function resolveApiBase() {
 
 function loadBalanceData() {
   // Check if current user is a marketer
-    let currentUser = globalState.user;
-    const marketers = JSON.parse(localStorage.getItem('marketers') || '[]');
-    const marketer = marketers.find(m => m.email === currentUser.email);
+  let currentUser = globalState.user;
+  const marketers = JSON.parse(localStorage.getItem('marketers') || '[]');
+  const marketer = marketers.find(m => m.email === currentUser.email);
   
   let demoData, realData;
   
@@ -208,6 +181,203 @@ function loadBalanceData() {
   // Display current account data
   updateAccountDisplay();
 }
+// ============================================================================
+// CHART INITIALIZATION & REALTIME FEED
+// ============================================================================
+
+let seriesRef = null;
+let lastBarTime = null;
+let feedInterval = null;
+let activeSeries = [];
+// Simple per-symbol simulation state to create trending moves
+const simState = {};
+
+function getSimState(symbol) {
+  if (!simState[symbol]) {
+    const base = getBaselineForPair(symbol);
+    simState[symbol] = {
+      last: base.basePrice,
+      drift: 0,        // long(er) term drift that slowly changes
+      momentum: 0,     // short-term momentum
+      volMult: 1       // adaptive volatility multiplier
+    };
+  }
+  return simState[symbol];
+}
+
+function generateNextBar(symbol, prevClose) {
+  const base = getBaselineForPair(symbol);
+  const st = getSimState(symbol);
+  const tf = Math.max(1, globalState.currentTimeframe || 5);
+  // Make lower timeframes more active (up to ~6x)
+  const tfAdj = Math.min(6, Math.max(1, 30 / tf));
+  // Slowly evolve drift to create trends, bounded to reasonable range
+  st.drift = st.drift * 0.97 + (Math.random() - 0.5) * 0.06; // persistent drift
+  st.momentum = st.momentum * 0.85 + (Math.random() - 0.5) * 0.3; // faster swings
+  // Volatility clustering: sometimes crank up the multiplier
+  if (Math.random() < 0.08) {
+    st.volMult = 0.7 + Math.random() * 2.8; // 0.7x .. 3.5x
+  }
+
+  const noise = (Math.random() - 0.5) * base.volatility * st.volMult * tfAdj;
+  // Combine drift (trend) + momentum + noise
+  const delta = base.volatility * tfAdj * (st.drift + 0.35 * st.momentum) + noise;
+
+  const open = prevClose;
+  const close = Math.max(0.5, open + delta);
+  // Make highs/lows with some extra excursion based on volatility
+  const wiggle = base.volatility * tfAdj * (0.6 + Math.random());
+  const high = Math.max(open, close) + Math.abs(wiggle) * (0.6 + Math.random());
+  const low = Math.min(open, close) - Math.abs(wiggle) * (0.6 + Math.random());
+  st.last = close;
+  return { open, high, low, close };
+}
+
+function initChart() {
+  const container = document.getElementById('chartContainer') || document.querySelector('#chart');
+  // Destroy previous chart/series to avoid overlays
+  // Remove any previously created series
+  if (globalState.chart && activeSeries.length) {
+    try { activeSeries.forEach(s => globalState.chart.removeSeries(s)); } catch(_) {}
+    activeSeries = [];
+  }
+  const chart = LightweightCharts.createChart(container, {
+    layout: { background: { type: 'solid', color: '#121826' }, textColor: '#cbd5e1' },
+    grid: { vertLines: { color: '#1f2937' }, horzLines: { color: '#1f2937' } },
+    rightPriceScale: { borderColor: '#334155' },
+    timeScale: {
+      borderColor: '#334155',
+      timeVisible: true,
+      secondsVisible: true,
+      tickMarkFormatter: (time) => {
+        // Show exact time HH:MM:SS
+        const d = new Date((time * 1000));
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      }
+    }
+  });
+  try { chart.timeScale().applyOptions({ rightOffset: 4, barSpacing: 7 }); } catch(_) {}
+  globalState.chart = chart;
+
+  if (globalState.chartType === 'bar') {
+    seriesRef = chart.addBarSeries({ upColor: '#10b981', downColor: '#ef4444', borderUpColor: '#10b981', borderDownColor: '#ef4444' });
+  } else {
+    seriesRef = chart.addCandlestickSeries({ upColor: '#10b981', downColor: '#ef4444', borderUpColor: '#10b981', borderDownColor: '#ef4444', wickUpColor: '#10b981', wickDownColor: '#ef4444' });
+  }
+  activeSeries = [seriesRef];
+
+  // Seed with a healthy number of bars ending exactly on timeframe boundaries
+  const now = Math.floor(Date.now() / 1000);
+  const tf = globalState.currentTimeframe;
+  const aligned = now - (now % tf);
+  const seed = [];
+  let baseline = getBaselineForPair(globalState.selectedPair);
+  let price = baseline.basePrice;
+  const vol = baseline.volatility;
+  const SEED_BARS = 120;
+  for (let i = SEED_BARS; i >= 1; i--) {
+    const t = aligned - i * tf;
+    const bar = generateNextBar(globalState.selectedPair, price);
+    seed.push({ time: t, ...bar });
+    price = bar.close;
+  }
+  seriesRef.setData(seed);
+  lastBarTime = aligned - (tf);
+  // Ensure multiple candles are visible (not zoomed into single bar)
+  try {
+    globalState.chart.timeScale().setVisibleRange({ from: aligned - tf * (SEED_BARS - 2), to: aligned + tf });
+  } catch(_) {}
+}
+
+function startRealtimeFeed() {
+  const tf = globalState.currentTimeframe;
+  if (feedInterval) { try { clearInterval(feedInterval); } catch(_) {} feedInterval = null; }
+  function tick() {
+    const now = Math.floor(Date.now() / 1000);
+    const aligned = now - (now % tf);
+    const last = lastBarTime || aligned - tf;
+    const makingNewBar = aligned > last;
+    const base = getBaselineForPair(globalState.selectedPair);
+    const lastClose = seriesRef && seriesRef._data && seriesRef._data.length ? seriesRef._data[seriesRef._data.length - 1].close : base.basePrice;
+    const bar = generateNextBar(globalState.selectedPair, lastClose);
+
+    if (makingNewBar) {
+      seriesRef.update({ time: aligned, ...bar });
+      lastBarTime = aligned;
+    } else {
+      // Update the current forming bar at the exact boundary
+      seriesRef.update({ time: last, ...bar });
+    }
+  }
+  // Update several times per second to keep movement lively
+  feedInterval = setInterval(tick, 1000);
+}
+
+// Wire up timeframe and chart type selectors
+function setupChartControls() {
+  const tfSel = document.getElementById('timeframeSelect');
+  const typeSel = document.getElementById('chartTypeSelect');
+  const pairSel = document.getElementById('pairSelector');
+  if (tfSel) {
+    tfSel.value = String(globalState.currentTimeframe);
+    tfSel.addEventListener('change', () => {
+      globalState.currentTimeframe = parseInt(tfSel.value, 10) || 5;
+      // Recreate chart to align bars to new timeframe
+      if (globalState.chart) {
+        const container = document.getElementById('chartContainer') || document.querySelector('#chart');
+        container.innerHTML = '';
+      }
+      initChart();
+      startRealtimeFeed();
+    });
+  }
+  if (typeSel) {
+    typeSel.value = globalState.chartType;
+    typeSel.addEventListener('change', () => {
+      globalState.chartType = typeSel.value;
+      // Recreate chart with selected series type
+      if (globalState.chart) {
+        const container = document.getElementById('chartContainer') || document.querySelector('#chart');
+        container.innerHTML = '';
+      }
+      initChart();
+      startRealtimeFeed();
+    });
+  }
+  if (pairSel) {
+    pairSel.addEventListener('change', () => {
+      globalState.selectedPair = pairSel.value;
+      const container = document.getElementById('chartContainer') || document.querySelector('#chart');
+      if (container) container.innerHTML = '';
+      initChart();
+      startRealtimeFeed();
+    });
+  }
+}
+
+function getBaselineForPair(symbol) {
+  let basePrice = 1.10;
+  let volatility = 0.002;
+  switch (symbol) {
+    case 'EUR/USD': basePrice = 1.10; volatility = 0.0015; break;
+    case 'GBP/USD': basePrice = 1.26; volatility = 0.0018; break;
+    case 'USD/JPY': basePrice = 149.50; volatility = 0.08; break;
+    case 'AUD/USD': basePrice = 0.665; volatility = 0.0016; break;
+    case 'USD/CAD': basePrice = 1.353; volatility = 0.0014; break;
+    case 'BTCUSD':
+    case 'Bitcoin': basePrice = 45230; volatility = 60; break;
+    case 'ETHUSD':
+    case 'Ethereum': basePrice = 2450; volatility = 8; break;
+    default:
+      const fx = (MARKET_DATA.forex||[]).find(p => p.symbol === symbol);
+      const cr = (MARKET_DATA.crypto||[]).find(p => p.symbol === symbol || p.pair === symbol);
+      if (fx) { basePrice = fx.ask; volatility = 0.0015; }
+      else if (cr) { basePrice = cr.price; volatility = (cr.pair==='BTCUSD'||cr.symbol==='Bitcoin') ? 60 : 8; }
+      break;
+  }
+  return { basePrice, volatility };
+}
+
 
 function updateAccountDisplay() {
   const account = globalState.currentAccount;
@@ -340,21 +510,21 @@ function createTableRow(data) {
 // PRICE UPDATES & CHART UPDATES
 // ============================================================================
 
+let chartUpdateCounter = 0;
 let lastCandleTime = Math.floor(Date.now() / 1000);
 let currentCandleData = null;
 
 function updatePrices() {
   // Simulate realistic price movements
   MARKET_DATA.forex.forEach(item => {
-    // Increase volatility slightly for faster visual movement
-    const changeAmount = (Math.random() - 0.5) * 0.0003;
+    const changeAmount = (Math.random() - 0.5) * 0.0001;
     item.bid += changeAmount;
     item.ask += changeAmount;
     item.change += (Math.random() - 0.5) * 0.1;
   });
   
   MARKET_DATA.crypto.forEach(item => {
-    const changeAmount = (Math.random() - 0.5) * 100;
+    const changeAmount = (Math.random() - 0.5) * 50;
     item.price += changeAmount;
     item.change24h += (Math.random() - 0.5) * 0.2;
   });
@@ -362,12 +532,11 @@ function updatePrices() {
   // Update market ticker display
   updateTicker();
   
-  // Time-based candle creation according to current timeframe (seconds per candle)
-  if (globalState.chart) {
-    const now = Math.floor(Date.now() / 1000);
-    if ((now - lastCandleTime) >= globalState.currentTimeframe) {
-      updateChartWithNewCandle();
-    }
+  // Update chart with new candle data every ~5 seconds (3 updates at 2000ms each = ~6 seconds)
+  chartUpdateCounter++;
+  if (chartUpdateCounter >= 3 && globalState.chart) {
+    updateChartWithNewCandle();
+    chartUpdateCounter = 0;
   }
 }
 
@@ -576,44 +745,11 @@ function calculateWilliamsR(data, period = 14) {
 // CHART INITIALIZATION & MANAGEMENT
 // ============================================================================
 
-let __lwcLocalFallbackInjected = false;
-let __debugOverlay;
-function showDebug(msg){
-  try{
-    const params = new URLSearchParams(location.search);
-    if (!params.get('debug')) return;
-    if (!__debugOverlay){
-      __debugOverlay = document.createElement('div');
-      __debugOverlay.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:9999;background:rgba(0,0,0,0.7);color:#0ff;padding:8px 10px;border:1px solid #0ff;border-radius:6px;font-family:monospace;font-size:12px;max-width:80vw;pointer-events:none;white-space:pre-wrap;';
-      document.body.appendChild(__debugOverlay);
-    }
-    const now = new Date().toLocaleTimeString();
-    __debugOverlay.textContent = `[${now}] ${msg}`;
-  }catch{}
-}
-async function initChart() {
+function initChart() {
   const container = document.getElementById('mainChart');
   if (!container) {
     console.error('Chart container not found');
-    showDebug('Chart container not found');
     return;
-  }
-  // Wait until container has a usable size (some phones paint later)
-  const cw = container.clientWidth || 0;
-  const ch = container.clientHeight || 0;
-  showDebug(`container size -> ${cw}x${ch}`);
-  if (cw < 50 || ch < 150) {
-    // Force a layout reflow before retry (Android low-RAM devices)
-    try { void container.offsetHeight; } catch {}
-    showDebug('container too small, retrying in 300ms');
-    setTimeout(initChart, 300);
-    return;
-  }
-  // As a last resort, ensure a sensible height is set before creating chart
-  if (ch < 200) {
-    const targetH = Math.max(320, Math.floor(window.innerHeight * 0.55));
-    container.style.height = targetH + 'px';
-    showDebug('Enforced container height: ' + targetH);
   }
   
   // Force container to have dimensions
@@ -625,33 +761,13 @@ async function initChart() {
   // Wait for LightweightCharts to load
   if (!window.LightweightCharts) {
     console.warn('LightweightCharts not loaded yet, retrying...');
-    showDebug('LightweightCharts not loaded; injecting local fallback and retrying');
-    // Attempt local fallback once if CDN hasn't loaded
-    if (!__lwcLocalFallbackInjected) {
-      try {
-        const s = document.createElement('script');
-        s.src = 'libs/lightweight-charts.min.js';
-        document.head.appendChild(s);
-        __lwcLocalFallbackInjected = true;
-      } catch {}
-    }
-    setTimeout(initChart, 700);
+    setTimeout(initChart, 500);
     return;
   }
   
   console.log('LightweightCharts library loaded');
   
   try {
-    // Double rAF to ensure layout is stable before chart creation
-    await new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res)));
-    // Detect user locale/timezone for tick formatting
-    const savedPrefs = (window.storage && storage.getUserPrefs && storage.getUserPrefs()) || {};
-    const userLocale = savedPrefs.locale || (navigator.language || 'en-US');
-    const userTimeZone = savedPrefs.timeZone || (Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC');
-    try { if (window.storage && storage.setUserPrefs) storage.setUserPrefs({ locale: userLocale, timeZone: userTimeZone }); } catch {}
-    globalState.userLocale = userLocale;
-    globalState.userTimeZone = userTimeZone;
-
     globalState.chart = LightweightCharts.createChart(container, {
       width: width,
       height: height,
@@ -659,46 +775,9 @@ async function initChart() {
         background: { color: '#0f1419' },
         textColor: '#d1d5db'
       },
-      grid: {
-        vertLines: {
-          color: 'rgba(45, 55, 72, 0.6)',
-          style: (window.LightweightCharts?.LineStyle?.Solid ?? 0)
-        },
-        horzLines: {
-          color: 'rgba(45, 55, 72, 0.6)',
-          style: (window.LightweightCharts?.LineStyle?.Solid ?? 0)
-        }
-      },
-      crosshair: {
-        mode: (window.LightweightCharts?.CrosshairMode?.Normal ?? 0),
-        vertLine: {
-          color: 'rgba(136, 153, 170, 0.9)',
-          width: 1,
-          style: (window.LightweightCharts?.LineStyle?.Dashed ?? 1),
-          labelVisible: true
-        },
-        horzLine: {
-          color: 'rgba(136, 153, 170, 0.9)',
-          width: 1,
-          style: (window.LightweightCharts?.LineStyle?.Dashed ?? 1),
-          labelVisible: true
-        }
-      },
       timeScale: {
         timeVisible: true,
-        secondsVisible: true,
-        rightOffset: 0,
-        fixRightEdge: true,
-        lockVisibleTimeRangeOnResize: true,
-        tickMarkFormatter: (time, type, locale) => {
-          try {
-            const dt = new Date((typeof time === 'number' ? time : time.utc) * 1000);
-            return dt.toLocaleTimeString(globalState.userLocale, {
-              hour: '2-digit', minute: '2-digit', second: '2-digit',
-              hour12: false, timeZone: globalState.userTimeZone
-            });
-          } catch { return '' }
-        }
+        secondsVisible: false
       },
       rightPriceScale: {
         borderColor: '#2d3748',
@@ -706,88 +785,28 @@ async function initChart() {
           top: 0.1,
           bottom: 0.1
         }
-      },
-      handleScroll: {
-        mouseWheel: true,
-        pressedMouseMove: true
-      },
-      handleScale: {
-        axisDoubleClickReset: true,
-        mouseWheel: true,
-        pinch: true
-      },
-      localization: {
-        locale: userLocale
       }
     });
     
     console.log('Chart object created:', !!globalState.chart);
-    showDebug('Chart object created: ' + (!!globalState.chart));
-    // Track series references to avoid overlaps
-    globalState.seriesRefs = [];
     
     const series = createChartSeries(globalState.chart, globalState.chartType);
     console.log('Chart series created:', !!series);
-    // Add simulated bid/ask overlay
-    addBidAskOverlay(globalState.chart, series);
-    // Add horizontal guide lines near round numbers for clearer levels
-    addGuideLines(globalState.chart, series);
-      // Add indicator overlays based on current selections
-      addIndicatorOverlays(globalState.chart, series);
-    // Start simulated ticks to visibly move prices (rAF-driven)
-    startSimTicks(globalState.chart, series);
     
     // Display indicators
     displayIndicators();
     
     console.log('Chart initialized successfully');
-    showDebug('Chart initialized successfully');
-    // Fallback: if canvas didn't mount, retry once after a short delay
-    setTimeout(() => {
-      const hasCanvas = container.querySelector('canvas');
-      if (!hasCanvas) {
-        try { console.warn('Chart canvas missing, retrying init...'); initChart(); } catch {}
-        showDebug('Canvas missing; re-running init');
-      }
-    }, 800);
     
     // Handle window resize
     window.addEventListener('resize', () => {
       if (globalState.chart && container) {
         const newWidth = container.clientWidth || 800;
-        const newHeight = container.clientHeight || 450;
-        globalState.chart.applyOptions({ width: newWidth, height: newHeight });
+        globalState.chart.applyOptions({ width: newWidth });
       }
-    });
-
-    // Resize observer for layout changes (mobile keyboard/orientation)
-    try {
-      const ro = new ResizeObserver(() => {
-        if (globalState.chart && container) {
-          globalState.chart.applyOptions({
-            width: container.clientWidth || 800,
-            height: container.clientHeight || 450
-          });
-        }
-      });
-      ro.observe(container);
-      globalState.__chartRO = ro;
-    } catch {}
-
-    // Orientation change
-    window.addEventListener('orientationchange', () => {
-      setTimeout(() => {
-        if (globalState.chart && container) {
-          globalState.chart.applyOptions({
-            width: container.clientWidth || 800,
-            height: container.clientHeight || 450
-          });
-        }
-      }, 250);
     });
   } catch (err) {
     console.error('Error initializing chart:', err);
-    showDebug('Error initializing chart: ' + (err && err.message));
   }
 }
 
@@ -797,19 +816,10 @@ function createChartSeries(chart, chartType) {
     return;
   }
   
-  // Remove previously tracked series (reliable for Lightweight Charts)
-  if (globalState.seriesRefs && Array.isArray(globalState.seriesRefs)) {
-    let removed = 0;
-    globalState.seriesRefs.forEach(s => {
-      try { chart.removeSeries(s); removed++; } catch {}
-    });
-    globalState.seriesRefs = [];
-    if (removed) console.log(`✓ Removed ${removed} existing series`);
-  }
-  // Stop any running tick timers before creating new series
-  if (globalState.tickTimer) {
-    try { cancelAnimationFrame(globalState.tickTimer); } catch {}
-    globalState.tickTimer = null;
+  // Remove any previously created series (tracked by us)
+  if (activeSeries.length) {
+    try { activeSeries.forEach(s => chart.removeSeries(s)); } catch(_) {}
+    activeSeries = [];
   }
   
   const data = generateCandleData();
@@ -818,7 +828,7 @@ function createChartSeries(chart, chartType) {
     return;
   }
   
-  console.log(`Creating ${chartType} series with ${data.length} candles, timeframe: ${globalState.currentTimeframe}s`);
+  console.log(`Creating ${chartType} series with ${data.length} candles, timeframe: ${globalState.currentTimeframe}m`);
   
   let series;
   
@@ -877,6 +887,8 @@ function createChartSeries(chart, chartType) {
     }
     
     if (series && chart.timeScale) {
+      seriesRef = series;
+      activeSeries = [series];
       chart.timeScale().fitContent();
       console.log('✓ Chart time scale fitted');
     }
@@ -890,338 +902,51 @@ function createChartSeries(chart, chartType) {
     console.error('Error creating chart series:', err);
   }
   
-  // Track the primary series
-  if (!globalState.seriesRefs) globalState.seriesRefs = [];
-  if (series) globalState.seriesRefs.push(series);
-
   return series;
-}
-
-// Add simulated bid/ask overlay lines based on close values and a small spread
-function addBidAskOverlay(chart, baseSeries) {
-  try {
-    if (!chart || !baseSeries) return;
-    // Distinct colors for bid/ask to make spread visible
-    const bidSeries = chart.addLineSeries({ color: '#f39c12', lineWidth: 2, lineStyle: (window.LightweightCharts?.LineStyle?.Dotted ?? 0) });
-    const askSeries = chart.addLineSeries({ color: '#e74c3c', lineWidth: 2, lineStyle: (window.LightweightCharts?.LineStyle?.Dotted ?? 0) });
-    const data = baseSeries._data || null; // internal not exposed; recompute from generator
-    const candles = generateCandleData();
-    const pairSel = document.getElementById('pairSelector');
-    const meta = getSymbolMeta(pairSel ? pairSel.value : 'EURUSD');
-    const pip = meta.pip;
-    const dyn = getSymbolDynamics(meta.symbol);
-    const half = (dyn.spreadPips * pip) / 2; // symbol-specific spread
-    const bid = candles.map(c => ({ time: c.time, value: c.close - half }));
-    const ask = candles.map(c => ({ time: c.time, value: c.close + half }));
-    bidSeries.setData(bid);
-    askSeries.setData(ask);
-    if (!globalState.seriesRefs) globalState.seriesRefs = [];
-    globalState.seriesRefs.push(bidSeries);
-    globalState.seriesRefs.push(askSeries);
-  } catch (e) {
-    console.warn('Bid/Ask overlay error:', e.message);
-  }
-}
-
-// Add horizontal dotted guide lines around round-number levels (top/mid/bottom)
-function addGuideLines(chart, baseSeries) {
-  try {
-    const candles = generateCandleData();
-    if (!candles || candles.length === 0) return;
-    const last = candles[candles.length - 1];
-    const pairSel = document.getElementById('pairSelector');
-    const meta = getSymbolMeta(pairSel ? pairSel.value : 'EURUSD');
-    const dec = meta.decimals;
-    // Round to 2 decimals for readability (FX majors), adjust for JPY/crypto
-    const roundUnit = (/JPY/.test(meta.symbol)) ? 0.1 : (meta.category === 'crypto' ? 1 : 0.01);
-    const baseLevel = Math.round(last.close / roundUnit) * roundUnit;
-    const top = parseFloat((baseLevel + roundUnit).toFixed(dec));
-    const mid = parseFloat(baseLevel.toFixed(dec));
-    const bot = parseFloat((baseLevel - roundUnit).toFixed(dec));
-    const times = candles.map(c => c.time);
-    const mkSeries = (color) => chart.addLineSeries({ color, lineWidth: 1, lineStyle: (window.LightweightCharts?.LineStyle?.Dotted ?? 0) });
-    const topS = mkSeries('#ff4757');
-    const midS = mkSeries('#00d084');
-    const botS = mkSeries('#f39c12');
-    topS.setData(times.map(t => ({ time: t, value: top })));
-    midS.setData(times.map(t => ({ time: t, value: mid })));
-    botS.setData(times.map(t => ({ time: t, value: bot })));
-    if (!globalState.seriesRefs) globalState.seriesRefs = [];
-    globalState.seriesRefs.push(topS, midS, botS);
-    // Store for live updates
-    globalState.guideLines = { topS, midS, botS, roundUnit, dec };
-  } catch (e) {}
-}
-
-// Add indicator overlays (SMA, EMA, Bollinger Bands) as visible chart series
-function addIndicatorOverlays(chart, baseSeries) {
-  try {
-    if (!chart || !baseSeries) return;
-    // Clear previous indicator overlays only
-    if (!globalState.indicatorSeriesRefs) globalState.indicatorSeriesRefs = [];
-    globalState.indicatorSeriesRefs.forEach(s => { try { chart.removeSeries(s); } catch {} });
-    globalState.indicatorSeriesRefs = [];
-
-    // Determine selected indicators from checkboxes (dashboard.html / indicatorsTab)
-    const selected = [];
-    ['sma','ema','bb'].forEach(id => { if (document.getElementById(`ind-${id}`)?.checked) selected.push(id); });
-    if (selected.length === 0) return;
-
-    const candles = generateCandleData();
-    if (!candles || candles.length === 0) return;
-
-    // SMA(20)
-    if (selected.includes('sma')) {
-      const sma = calculateSMA(candles, 20).map(d => ({ time: d.time, value: d.value }));
-      const smaSeries = chart.addLineSeries({ color: '#4de9ff', lineWidth: 2 });
-      smaSeries.setData(sma);
-      globalState.indicatorSeriesRefs.push(smaSeries);
-    }
-
-    // EMA(12)
-    if (selected.includes('ema')) {
-      const ema = calculateEMA(candles, 12).map(d => ({ time: d.time, value: d.value }));
-      const emaSeries = chart.addLineSeries({ color: '#00d084', lineWidth: 2 });
-      emaSeries.setData(ema);
-      globalState.indicatorSeriesRefs.push(emaSeries);
-    }
-
-    // Bollinger Bands (20, 2)
-    if (selected.includes('bb')) {
-      const bb = calculateBollingerBands(candles, 20, 2);
-      const upper = bb.map(b => ({ time: b.time, value: b.upper }));
-      const middle = bb.map(b => ({ time: b.time, value: b.middle }));
-      const lower = bb.map(b => ({ time: b.time, value: b.lower }));
-      const dashed = (window.LightweightCharts?.LineStyle?.Dashed ?? 1);
-      const upS = chart.addLineSeries({ color: '#ffa502', lineWidth: 1, lineStyle: dashed });
-      const midS = chart.addLineSeries({ color: '#8899aa', lineWidth: 1 });
-      const loS = chart.addLineSeries({ color: '#ffa502', lineWidth: 1, lineStyle: dashed });
-      upS.setData(upper); midS.setData(middle); loS.setData(lower);
-      globalState.indicatorSeriesRefs.push(upS, midS, loS);
-    }
-  } catch (e) {
-    console.warn('Indicator overlay error:', e.message);
-  }
-}
-
-// Utility: per-symbol volatility and spread
-// Meta info: base price, pip size, decimal precision
-function getSymbolMeta(symbol){
-  const s = String(symbol || '').toUpperCase();
-  // Crypto
-  if (/BTC/.test(s)) return { symbol: s, category: 'crypto', basePrice: 43000, pip: 1, decimals: 2 };
-  if (/ETH/.test(s)) return { symbol: s, category: 'crypto', basePrice: 2300, pip: 0.5, decimals: 2 };
-  if (/XRP/.test(s)) return { symbol: s, category: 'crypto', basePrice: 0.60, pip: 0.0001, decimals: 4 };
-  if (/ADA/.test(s)) return { symbol: s, category: 'crypto', basePrice: 0.50, pip: 0.0001, decimals: 4 };
-  if (/DOGE/.test(s)) return { symbol: s, category: 'crypto', basePrice: 0.095, pip: 0.0001, decimals: 4 };
-  if (/LTC/.test(s)) return { symbol: s, category: 'crypto', basePrice: 75, pip: 0.1, decimals: 2 };
-  // Metals/CFD examples
-  if (/XAU/.test(s)) return { symbol: s, category: 'fx', basePrice: 2350, pip: 0.1, decimals: 2 };
-  // FX majors
-  if (/USDJPY/.test(s)) return { symbol: s, category: 'fx', basePrice: 145.0, pip: 0.01, decimals: 3 };
-  if (/EURJPY/.test(s)) return { symbol: s, category: 'fx', basePrice: 158.0, pip: 0.01, decimals: 3 };
-  if (/EURUSD/.test(s)) return { symbol: s, category: 'fx', basePrice: 1.0950, pip: 0.0001, decimals: 5 };
-  if (/GBPUSD/.test(s)) return { symbol: s, category: 'fx', basePrice: 1.2700, pip: 0.0001, decimals: 5 };
-  if (/USDCAD/.test(s)) return { symbol: s, category: 'fx', basePrice: 1.3600, pip: 0.0001, decimals: 5 };
-  if (/AUDUSD/.test(s)) return { symbol: s, category: 'fx', basePrice: 0.6700, pip: 0.0001, decimals: 5 };
-  if (/NZDUSD/.test(s)) return { symbol: s, category: 'fx', basePrice: 0.6200, pip: 0.0001, decimals: 5 };
-  // Default
-  return { symbol: s || 'EURUSD', category: 'fx', basePrice: 1.0950, pip: 0.0001, decimals: 5 };
-}
-function getSymbolDynamics(symbol){
-  const meta = getSymbolMeta(symbol);
-  const s = meta.symbol;
-  // Vol scaled to pip for consistent feel across instruments
-  if (/BTC|ETH|XRP|ADA|DOGE|LTC/.test(s)) return { vol: meta.pip * 0.25, spreadPips: 20 };
-  if (/JPY/.test(s)) return { vol: meta.pip * 0.10, spreadPips: 2.0 };
-  return { vol: meta.pip * 0.12, spreadPips: 1.2 };
-}
-
-// Simulated ticking updates (requestAnimationFrame) for smooth movement
-function startSimTicks(chart, baseSeries) {
-  try {
-    if (!chart || !baseSeries) return;
-    // Find overlay lines we added and keep in refs (last two entries are bid/ask)
-    const refs = globalState.seriesRefs || [];
-    const bidSeries = refs.length >= 2 ? refs[refs.length - 2] : null;
-    const askSeries = refs.length >= 1 ? refs[refs.length - 1] : null;
-
-    // Seed last close from base series data
-    const seed = generateCandleData();
-    let last = seed[seed.length - 1];
-    const pairSel = document.getElementById('pairSelector');
-    let meta = getSymbolMeta(pairSel ? pairSel.value : 'EURUSD');
-    let pip = meta.pip;
-    let dec = meta.decimals;
-    let dynamics = getSymbolDynamics(meta.symbol);
-    let half = (dynamics.spreadPips * pip) / 2;
-
-    // Trend regime: bullish/bearish drift with momentum for wider movement
-    let regimeDir = Math.random() < 0.5 ? 1 : -1; // 1 = bullish, -1 = bearish
-    let momentum = 0; // accumulates to create higher highs/lows
-    let lastRegimeChange = performance.now();
-    const minRegimeMs = 8000; // minimum time before potential flip
-
-    // rAF loop with internal rate limit (scaled by seconds timeframe)
-    let lastFrame = 0;
-    const tfSec = globalState.currentTimeframe || 5; // seconds per candle
-    const tfMs = tfSec * 1000;
-    const minDelta = tfSec <= 1 ? 160 : (tfSec <= 5 ? 220 : (tfSec <= 15 ? 260 : 300)); // ms
-
-    // Aggregate ticks into OHLC bars aligned to second-based timeframe boundaries
-    let currentWindowStart = 0;
-    let ohlc = null;
-    function loop(ts){
-      try{
-        if (!globalState || !globalState.chart) return;
-        if (lastFrame && (ts - lastFrame) < minDelta) { requestAnimationFrame(loop); return; }
-        lastFrame = ts;
-
-        // Scale volatility by timeframe: lower tf → more movement
-        const volBase = dynamics.vol;
-        const volMult = tfSec <= 1 ? 0.12 : (tfSec <= 5 ? 0.10 : (tfSec <= 15 ? 0.085 : 0.07));
-        const vol = volBase * volMult;
-        // Calm mode: clamp per-bar delta by instrument using pip (relaxed for FX/JPY)
-        const symbolUpper = meta.symbol;
-        let maxDelta = (/BTC|ETH|XRP|ADA|DOGE|LTC/.test(symbolUpper) ? pip * 0.80 : (/JPY/.test(symbolUpper) ? pip * 0.20 : pip * 0.30));
-
-        // Occasionally flip regime to create swings (rarer on larger tf)
-        const canFlip = (performance.now() - lastRegimeChange) > minRegimeMs;
-        const flipProb = tfSec <= 5 ? 0.001 : 0.0005;
-        if (canFlip && Math.random() < flipProb) {
-          regimeDir = Math.random() < 0.5 ? 1 : -1;
-          lastRegimeChange = performance.now();
-          momentum *= 0.35; // further soften after flip
-        }
-
-        // Build momentum toward regime direction; add controlled noise
-        momentum = momentum * 0.992 + regimeDir * vol * 0.03;
-        const noise = (Math.random() - 0.5) * (vol * 0.04);
-        const drift = regimeDir * vol * 0.02;
-        const rawDelta = drift + momentum + noise;
-        // Ensure a minimum visible body
-        const minBody = (/BTC|ETH|XRP|ADA|DOGE|LTC/.test(symbolUpper) ? pip * 0.6 : (/JPY/.test(symbolUpper) ? pip * 0.02 : pip * 0.015));
-        let deltaMag = Math.min(maxDelta, Math.max(minBody, Math.abs(rawDelta)));
-        const delta = (rawDelta >= 0 ? 1 : -1) * deltaMag;
-        const close = last.close + delta;
-        const open = last.close;
-        const bodyAbs = Math.abs(delta);
-        const wickBoost = Math.random() < 0.12 ? bodyAbs * 1.1 : bodyAbs * 0.6;
-        const high = Math.max(open, close) + Math.random() * wickBoost;
-        const low = Math.min(open, close) - Math.random() * wickBoost;
-        const nowSec = Math.floor(Date.now() / 1000);
-        // Align to the beginning of the current seconds-based timeframe window
-        const windowStart = Math.floor(nowSec / tfSec) * tfSec;
-        if (!currentWindowStart || currentWindowStart !== windowStart) {
-          // Finalize previous bar implicitly (update already done), start new window
-          currentWindowStart = windowStart;
-          const seedClose = last.close;
-          ohlc = { time: currentWindowStart, open: seedClose, high: seedClose, low: seedClose, close: seedClose };
-        }
-        // Evolve OHLC within current window
-        ohlc.high = Math.max(ohlc.high, parseFloat(high.toFixed(dec)));
-        ohlc.low = Math.min(ohlc.low, parseFloat(low.toFixed(dec)));
-        ohlc.close = parseFloat(close.toFixed(dec));
-        const type = globalState.chartType;
-        if (type === 'candlestick' || type === 'bar') {
-          // Always update the current evolving OHLC to avoid visual gaps
-          baseSeries.update(ohlc);
-        } else {
-          baseSeries.update({ time: currentWindowStart, value: ohlc.close });
-        }
-        // Keep overlays aligned with the same timestamp
-        if (bidSeries) bidSeries.update({ time: currentWindowStart, value: ohlc.close - half });
-        if (askSeries) askSeries.update({ time: currentWindowStart, value: ohlc.close + half });
-        // Update horizontal guide lines to nearest round level
-        if (globalState.guideLines) {
-          try {
-            const gl = globalState.guideLines;
-            const roundUnit = gl.roundUnit;
-            const decU = gl.dec;
-            const baseLevel = Math.round(ohlc.close / roundUnit) * roundUnit;
-            const top = parseFloat((baseLevel + roundUnit).toFixed(decU));
-            const mid = parseFloat(baseLevel.toFixed(decU));
-            const bot = parseFloat((baseLevel - roundUnit).toFixed(decU));
-            gl.topS.update({ time: currentWindowStart, value: top });
-            gl.midS.update({ time: currentWindowStart, value: mid });
-            gl.botS.update({ time: currentWindowStart, value: bot });
-          } catch {}
-        }
-        if (globalState.chart.timeScale) globalState.chart.timeScale().scrollToRealTime();
-        last = { time: nowSec, open, high, low, close };
-      }catch(e){ /* swallow */ }
-      requestAnimationFrame(loop);
-    }
-    // stop prior timers
-    if (globalState.tickTimer) { try { cancelAnimationFrame(globalState.tickTimer); } catch {} }
-    globalState.tickTimer = requestAnimationFrame(loop);
-
-    // Recompute dynamics on pair change
-    if (pairSel) {
-      pairSel.addEventListener('change', ()=>{
-        meta = getSymbolMeta(pairSel.value);
-        pip = meta.pip;
-        dec = meta.decimals;
-        dynamics = getSymbolDynamics(meta.symbol);
-        half = (dynamics.spreadPips * pip) / 2;
-      });
-    }
-  } catch (e) {
-    console.warn('startSimTicks error:', e.message);
-  }
 }
 
 function generateCandleData() {
   const data = [];
-  // Interpret currentTimeframe as seconds per candle
-  const timeframeSeconds = globalState.currentTimeframe || 5;
-  const numCandles = 90; // smoother context
-  
-  const pairSel = document.getElementById('pairSelector');
-  const meta = getSymbolMeta(pairSel ? pairSel.value : 'EURUSD');
-  const dec = meta.decimals;
-  const pip = meta.pip;
-  let baseTime = Math.floor(Date.now() / 1000) - (numCandles * timeframeSeconds);
-  let basePrice = meta.basePrice;
-  let ema = basePrice;
-  let drift = 0;
-  let regimeDir = Math.random() < 0.5 ? 1 : -1;
+  const timeframeMinutes = globalState.currentTimeframe;
+  const timeframeSeconds = timeframeMinutes * 60;
+  const nowTs = Math.floor(Date.now() / 1000);
+  const createdTs = globalState.accountCreatedAt ? Math.floor(new Date(globalState.accountCreatedAt).getTime() / 1000) : null;
+  const maxCandles = 600;
+  let baseTime;
+  let numCandles;
+
+  if (createdTs && createdTs < nowTs) {
+    const totalCandles = Math.max(1, Math.ceil((nowTs - createdTs) / timeframeSeconds));
+    if (totalCandles <= maxCandles) {
+      baseTime = createdTs;
+      numCandles = totalCandles;
+    } else {
+      numCandles = maxCandles;
+      baseTime = nowTs - (numCandles * timeframeSeconds);
+    }
+  } else {
+    numCandles = 60;
+    baseTime = nowTs - (numCandles * timeframeSeconds);
+  }
+
+  let basePrice = 1.0945;
   
   for (let i = 0; i < numCandles; i++) {
-    // Smooth drift + realistic body and wick sizes
-    if (i % 24 === 0) regimeDir = Math.random() < 0.5 ? 1 : -1;
-    const driftUnit = meta.category === 'crypto' ? pip * 0.04 : pip * 0.02;
-    const noiseUnit = meta.category === 'crypto' ? pip * 0.08 : pip * 0.04;
-    drift = drift * 0.992 + regimeDir * driftUnit;
-    const noise = (Math.random() - 0.5) * noiseUnit;
-    const next = ema + drift + noise;
-    ema = ema * 0.99 + next * 0.01;
-
-    const open = basePrice;
-    // Body size with minimum threshold for visibility
-    const dyn = getSymbolDynamics(meta.symbol);
-    const volBase = dyn.vol;
-    const volMult = timeframeSeconds <= 1 ? 0.18 : (timeframeSeconds <= 5 ? 0.15 : 0.12);
-    const target = volBase * volMult;
-    const minBody = meta.category === 'crypto' ? pip * 0.8 : (/JPY/.test(meta.symbol) ? pip * 0.03 : pip * 0.02);
-    let body = (Math.random() - 0.5) * (target * 2);
-    const bodyAbs = Math.max(minBody, Math.abs(body));
-    body = (body >= 0 ? 1 : -1) * bodyAbs;
-    const close = open + body;
-
-    // Wicks proportional to body with occasional larger extensions
-    const wickBase = meta.category === 'crypto' ? pip * 3.5 : pip * 0.6;
-    const upperWick = bodyAbs * (Math.random() * 0.6 + 0.2) + (Math.random() < 0.15 ? wickBase : wickBase * 0.5);
-    const lowerWick = bodyAbs * (Math.random() * 0.6 + 0.2) + (Math.random() < 0.15 ? wickBase : wickBase * 0.5);
-    const high = Math.max(open, close) + upperWick;
-    const low = Math.min(open, close) - lowerWick;
+    // More realistic volatility with trends
+    const trend = Math.sin(i / 10) * 0.0003;
+    const volatility = 0.0008 + Math.random() * 0.0003;
+    
+    const open = basePrice + trend;
+    const close = open + (Math.random() - 0.5) * volatility + trend;
+    const high = Math.max(open, close) + Math.random() * volatility;
+    const low = Math.min(open, close) - Math.random() * volatility;
     
     data.push({
       time: baseTime,
-      open: parseFloat(open.toFixed(dec)),
-      high: parseFloat(high.toFixed(dec)),
-      low: parseFloat(low.toFixed(dec)),
-      close: parseFloat(close.toFixed(dec))
+      open: parseFloat(open.toFixed(5)),
+      high: parseFloat(high.toFixed(5)),
+      low: parseFloat(low.toFixed(5)),
+      close: parseFloat(close.toFixed(5))
     });
     
     basePrice = close;
@@ -1591,9 +1316,7 @@ function setupEventListeners() {
       if (globalState.chart) {
         setTimeout(() => {
           console.log('Updating chart type to:', globalState.chartType);
-          const series = createChartSeries(globalState.chart, globalState.chartType);
-          addBidAskOverlay(globalState.chart, series);
-          startSimTicks(globalState.chart, series);
+          createChartSeries(globalState.chart, globalState.chartType);
           displayIndicators();
         }, 50);
       }
@@ -1612,9 +1335,7 @@ function setupEventListeners() {
       // Force clear and recreate with delay to ensure proper rendering
       setTimeout(() => {
         console.log('Updating chart for pair:', globalState.selectedPair);
-        const series = createChartSeries(globalState.chart, globalState.chartType);
-        addBidAskOverlay(globalState.chart, series);
-        startSimTicks(globalState.chart, series);
+        createChartSeries(globalState.chart, globalState.chartType);
         displayIndicators();
       }, 100);
     }
@@ -1642,9 +1363,7 @@ function setupEventListeners() {
       if (globalState.chart) {
         setTimeout(() => {
           console.log('Updating chart for timeframe:', globalState.currentTimeframe);
-          const series = createChartSeries(globalState.chart, globalState.chartType);
-          addBidAskOverlay(globalState.chart, series);
-          startSimTicks(globalState.chart, series);
+          createChartSeries(globalState.chart, globalState.chartType);
           displayIndicators();
         }, updateDelay);
       }
@@ -1678,38 +1397,6 @@ function setupEventListeners() {
   document.getElementById('sellBtn')?.addEventListener('click', () => {
     const price = MARKET_DATA.forex[0].ask;
     openTradeModal('EURUSD', 'EUR/USD');
-  });
-
-  // Header Buy/Sell buttons (Compact Mode / mobile)
-  document.getElementById('buyHeaderBtn')?.addEventListener('click', () => {
-    const sel = document.getElementById('pairSelector');
-    const code = sel ? sel.value : 'EURUSD';
-    const name = sel ? sel.options[sel.selectedIndex].text : 'EUR/USD';
-    openTradeModal(code, name);
-  });
-  document.getElementById('sellHeaderBtn')?.addEventListener('click', () => {
-    const sel = document.getElementById('pairSelector');
-    const code = sel ? sel.value : 'EURUSD';
-    const name = sel ? sel.options[sel.selectedIndex].text : 'EUR/USD';
-    openTradeModal(code, name);
-    globalState.tradeType = 'SELL';
-    setTradeType('SELL');
-  });
-
-  // Sticky trade bar buttons (XS phones)
-  document.getElementById('stickyBuyBtn')?.addEventListener('click', () => {
-    const sel = document.getElementById('pairSelector');
-    const code = sel ? sel.value : 'EURUSD';
-    const name = sel ? sel.options[sel.selectedIndex].text : 'EUR/USD';
-    openTradeModal(code, name);
-  });
-  document.getElementById('stickySellBtn')?.addEventListener('click', () => {
-    const sel = document.getElementById('pairSelector');
-    const code = sel ? sel.value : 'EURUSD';
-    const name = sel ? sel.options[sel.selectedIndex].text : 'EUR/USD';
-    openTradeModal(code, name);
-    globalState.tradeType = 'SELL';
-    setTradeType('SELL');
   });
   
   // Account toggle with balance updates
@@ -1764,26 +1451,11 @@ function setupEventListeners() {
   if (localStorage.getItem('theme') === 'light') {
     document.body.classList.add('light-mode');
   }
-
-  // Compact Mode toggle & auto-enable on small screens
-  const compactPref = localStorage.getItem('compact_mode') === 'true';
-  const isNarrow = window.innerWidth <= 480;
-  if (compactPref || isNarrow) document.body.classList.add('compact-mode');
-  const compactBtn = document.getElementById('compactModeToggle');
-  if (compactBtn) {
-    compactBtn.addEventListener('click', () => {
-      const enabled = document.body.classList.toggle('compact-mode');
-      localStorage.setItem('compact_mode', enabled ? 'true' : 'false');
-    });
-  }
   
   // Indicator checkboxes
   ['sma', 'ema', 'rsi', 'macd', 'bb', 'stoch', 'atr', 'adx', 'cci', 'williams'].forEach(ind => {
     document.getElementById(`ind-${ind}`)?.addEventListener('change', () => {
       displayIndicators();
-      // Refresh overlays without recreating base series
-      const primary = (globalState.seriesRefs && globalState.seriesRefs[0]) || null;
-      if (globalState.chart && primary) addIndicatorOverlays(globalState.chart, primary);
     });
   });
   
@@ -1805,85 +1477,6 @@ function setupEventListeners() {
   
   // Calculate profit on volume change
   document.getElementById('tradeVolume')?.addEventListener('input', calculateProfit);
-}
-
-// ============================================================================
-// TRADES LISTS (Recent & Open) — Backend fetch with fallback
-// ============================================================================
-
-async function loadRecentTrades() {
-  const base = (function(){
-    try{
-      const { protocol, hostname, port } = window.location;
-      const override = localStorage.getItem('api_base');
-      if (override && /^https?:\/\//i.test(override)) return override.replace(/\/$/, '');
-      if (String(port) === '3000') return '';
-      if (hostname) return `${protocol}//${hostname}:3000`;
-      return 'http://localhost:3000';
-    }catch{ return 'http://localhost:3000'; }
-  })();
-  try {
-    const resp = await fetch(`${base}/api/trades/trades`);
-    if (resp.ok) {
-      const data = await resp.json();
-      renderRecentTrades(data.trades || data);
-      return;
-    }
-  } catch (e) {}
-  const local = JSON.parse(localStorage.getItem('preo_trades') || '[]');
-  renderRecentTrades(local);
-}
-
-async function loadOpenPositions() {
-  const base = (function(){
-    try{
-      const { protocol, hostname, port } = window.location;
-      const override = localStorage.getItem('api_base');
-      if (override && /^https?:\/\//i.test(override)) return override.replace(/\/$/, '');
-      if (String(port) === '3000') return '';
-      if (hostname) return `${protocol}//${hostname}:3000`;
-      return 'http://localhost:3000';
-    }catch{ return 'http://localhost:3000'; }
-  })();
-  try {
-    const resp = await fetch(`${base}/api/trades/positions`);
-    if (resp.ok) {
-      const data = await resp.json();
-      updatePositionsDisplay();
-      return;
-    }
-  } catch (e) {}
-  updatePositionsDisplay();
-}
-
-function renderRecentTrades(trades) {
-  const container = document.getElementById('recentTradesList');
-  if (!container) return;
-  if (!trades || trades.length === 0) {
-    container.innerHTML = '<div class="empty-state">No recent trades</div>';
-    return;
-  }
-  container.innerHTML = '';
-  (trades || []).slice(0, 20).forEach(t => {
-    const div = document.createElement('div');
-    div.style.padding = 'var(--spacing-md)';
-    div.style.borderBottom = '1px solid var(--border-color)';
-    div.style.display = 'flex';
-    div.style.justifyContent = 'space-between';
-    const time = new Date(t.timestamp || Date.now()).toLocaleTimeString();
-    const sym = t.symbol || t.pair || t.asset || globalState.selectedPair;
-    const side = (t.side || t.type || '').toUpperCase();
-    const qty = t.size || t.quantity || t.volume || '';
-    const price = t.price || t.fillPrice || t.entryPrice || '';
-    div.innerHTML = `
-      <div>
-        <strong>${side}</strong> ${qty} ${sym}
-        <div style="font-size: 12px; color: var(--text-tertiary);">${time}</div>
-      </div>
-      <div style="color: var(--text-secondary);">@ ${price}</div>
-    `;
-    container.appendChild(div);
-  });
 }
 
 function calculateProfit() {
@@ -1968,6 +1561,12 @@ function executeTrade(e) {
   const tradeAccount = globalState.tradeAccount || globalState.currentAccount;
   const currentBalance = globalState.accountBalances[tradeAccount].balance;
   const entryPrice = MARKET_DATA.forex[0].ask;
+  // Enforce minimum trade notional $15
+  const estimatedNotional = volume * entryPrice;
+  if (estimatedNotional < 15) {
+    showNotification('❌ Minimum trade amount is $15', 'danger');
+    return;
+  }
   
   // Create trade object
   const trade = {
@@ -2144,6 +1743,9 @@ function executeTrade(e) {
     const profitMessage = isWinning ? 'Trade CLOSED with PROFIT: +$' + Math.abs(pnlAmount).toFixed(2) : 'Trade CLOSED with LOSS: -$' + Math.abs(pnlAmount).toFixed(2);
     showNotification(profitMessage, isWinning ? 'success' : 'danger');
     
+      // Refresh recent wins panel
+      try { updateRecentWinsDisplay(); } catch (e) {}
+    
   }, holdTime);
 }
 
@@ -2214,6 +1816,28 @@ function addRecentTrade(trade) {
   }
   
   container.insertBefore(item, container.firstChild);
+}
+
+function updateRecentWinsDisplay() {
+  const list = document.getElementById('recentWinsList');
+  if (!list) return;
+  const trades = storage.getTrades();
+  const wins = trades.filter(t => t.status === 'closed' && (t.pnl || 0) > 0).slice(0, 10);
+  if (wins.length === 0) {
+    list.innerHTML = '<div class="empty-state">No winning trades yet</div>';
+    return;
+  }
+  list.innerHTML = wins.map(w => {
+    const time = new Date(w.timestamp).toLocaleString();
+    return `
+      <div style="padding: var(--spacing-md); border-bottom: 1px solid var(--border-color); display:flex; justify-content: space-between; align-items:center;">
+        <div>
+          <strong>${w.type}</strong> ${w.volume} ${w.pair}
+          <div style="font-size:12px; color: var(--text-tertiary);">${time}</div>
+        </div>
+        <div style="color: var(--success); font-weight:600;">+$${Math.abs(w.pnl).toFixed(2)}</div>
+      </div>`;
+  }).join('');
 }
 
 // ============================================================================

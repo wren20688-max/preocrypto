@@ -8,14 +8,26 @@
  * @type {Object}
  */
 const PayHeroConfig = {
-  // PayHero API Credentials (Replace with your actual credentials)
-  PUBLIC_KEY: 'your_payhero_public_key',
-  SECRET_KEY: 'your_payhero_secret_key',
+  // PayHero API Credentials
+  // Provided token and account id
+  PUBLIC_KEY: '',
+  SECRET_KEY: 'TWhmU1hBM3RaTkhGTEg0bVBsTEY6dVc3U3BWdmFHMjJjb3VnZVI0b1NxYjAwZFJ0QXIyem1veEpvdEVBMg==',
   API_URL: 'https://api.payhero.io/v1',
-  WEBHOOK_URL: 'https://YOUR_API_GATEWAY_ID.execute-api.YOUR_REGION.amazonaws.com/default/payhero-webhook',
+  WEBHOOK_URL: '',
+  ACCOUNT_ID: 3869,
   
   // Payment method mappings for PayHero
   PAYMENT_METHODS: {
+    mpesa: {
+      gateway_code: 'mpesa_stk',
+      provider: 'M-PESA',
+      currency: 'USD',
+      processing_time: 'Instant',
+      min_amount: 10,
+      max_amount: 5000,
+      fee_percentage: 1.5,
+      fee_fixed: 0
+    },
     bank_transfer: {
       gateway_code: 'bank_transfer',
       provider: 'ACH',
@@ -41,7 +53,7 @@ const PayHeroConfig = {
       provider: 'CRYPTO',
       currency: 'USD',
       processing_time: '5-15 minutes',
-      min_amount: 10,
+      min_amount: 25,
       max_amount: 100000,
       fee_percentage: 1.0,
       fee_fixed: 0
@@ -77,7 +89,8 @@ const PayHeroIntegration = {
       currency = 'USD',
       userId,
       userEmail,
-      userName
+      userName,
+      phone
     } = paymentData;
 
     // Validate payment data
@@ -102,6 +115,9 @@ const PayHeroIntegration = {
     const totalAmount = amount + fee;
 
     // Create payment payload for PayHero
+    const baseUrl = (window.appConfig && window.appConfig.baseUrl) || window.location.origin;
+    const webhookUrl = PayHeroConfig.WEBHOOK_URL || (baseUrl.replace(/\/$/, '') + '/webhook/payhero');
+
     const payload = {
       amount: totalAmount,
       currency: currency,
@@ -114,14 +130,15 @@ const PayHeroIntegration = {
         method_type: method,
         original_amount: amount,
         fee: fee,
-        platform: 'preotrader_fx'
+        platform: 'preotrader_fx',
+        mpesa_phone: phone || undefined
       },
       customer: {
         email: userEmail,
         name: userName
       },
-      redirect_url: `${window.location.origin}/deposit.html?payment_status=success`,
-      webhook_url: PayHeroConfig.WEBHOOK_URL
+      redirect_url: `${baseUrl}/deposit.html?payment_status=success`,
+      webhook_url: webhookUrl
     };
 
     try {
@@ -360,43 +377,33 @@ const PayHeroIntegration = {
    * @returns {Promise<Object>} API response
    */
   async callPayHeroAPI(endpoint, data, method = 'POST') {
-    // Route calls through backend proxy to keep credentials server-side
-    let url = '';
-    // Optional credential index from localStorage (0-based)
-    let credIdx = 0;
-    try { const v = localStorage.getItem('payheroCredIndex'); if (v !== null) credIdx = parseInt(v, 10) || 0; } catch {}
-    const credParam = (Number.isFinite(credIdx) && credIdx >= 0) ? `?cred=${credIdx}` : '';
-    if (endpoint.startsWith('/payment/create')) url = '/api/payments/create';
-    else if (endpoint.startsWith('/payment/process')) url = '/api/payments/process';
-    else if (endpoint.includes('/payment/') && endpoint.endsWith('/verify')) {
-      const id = endpoint.split('/payment/')[1].replace('/verify','');
-      url = `/api/payments/${id}/verify`;
-    } else {
-      // Fallback to proxy any other endpoint under a generic path if needed in future
-      url = '/api/payments/create';
-    }
-
-    // Append credential selection when applicable
-    if (!url.includes('/verify')) {
-      url = `${url}${credParam}`;
-    } else if (credParam) {
-      url = `${url}${credParam}`;
-    }
+    const headers = {
+      'Content-Type': 'application/json',
+      // Use provided API token for Authorization
+      'Authorization': `Bearer ${PayHeroConfig.SECRET_KEY}`,
+      'X-Account-Id': String(PayHeroConfig.ACCOUNT_ID),
+      // Keep X-API-Key for compatibility if required by gateway
+      'X-API-Key': PayHeroConfig.SECRET_KEY,
+      'X-Request-ID': this.generateRequestId(),
+      'X-Timestamp': new Date().toISOString()
+    };
 
     try {
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch(`${PayHeroConfig.API_URL}${endpoint}`, {
+        method: method,
+        headers: headers,
         body: method !== 'GET' ? JSON.stringify(data) : undefined
       });
 
       const result = await response.json();
+
       if (!response.ok) {
-        throw new Error(result.message || result.error || 'API Error');
+        throw new Error(result.message || 'API Error');
       }
+
       return result;
     } catch (error) {
-      console.error('PayHero proxy call failed:', error);
+      console.error('PayHero API call failed:', error);
       throw error;
     }
   },

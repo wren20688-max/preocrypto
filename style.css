@@ -1,116 +1,3 @@
-/* Payment Methods Enhancements */
-:root {
-  --grad-primary: linear-gradient(90deg, #0055ff, #00d4ff);
-  --grad-success: linear-gradient(90deg, #00d084, #00d4ff);
-  --grad-warm: linear-gradient(90deg, #ff7b72, #ffb86b);
-}
-.input-with-icon {
-  position: relative;
-}
-.input-with-icon input {
-  padding-right: 38px;
-}
-.copy-icon-btn {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  border: none;
-  background: transparent;
-  color: var(--text-primary);
-  cursor: pointer;
-  padding: 4px;
-}
-.copy-icon-btn:hover { opacity: 0.85; }
-
-.network-badge {
-  display: inline-block;
-  padding: 6px 10px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 700;
-  background: var(--grad-primary);
-  color: #fff;
-}
-
-.badge {
-  display: inline-block;
-  padding: 6px 10px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 700;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.15);
-}
-
-.payment-options {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.method-card {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 14px;
-  padding: 16px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.12);
-  cursor: pointer;
-  transition: transform .15s ease, box-shadow .2s ease, border-color .2s ease;
-}
-.method-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 14px 34px rgba(0,0,0,0.18);
-  border-color: rgba(0,212,255,0.35);
-}
-.method-icon {
-  font-size: 20px;
-  margin-bottom: 8px;
-}
-.method-title {
-  font-weight: 700;
-  font-size: 14px;
-}
-.method-sub {
-  font-size: 12px;
-  color: var(--text-tertiary);
-  margin-top: 2px;
-}
-.method-cta {
-  margin-top: 10px;
-  display: inline-block;
-  font-size: 12px;
-  font-weight: 700;
-  color: #fff;
-  padding: 6px 10px;
-  border-radius: 10px;
-  background: var(--grad-primary);
-}
-
-.action-btn {
-  background: var(--grad-primary);
-  color: #fff;
-  border: none;
-  border-radius: 10px;
-  padding: 10px 14px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: opacity .15s ease, box-shadow .2s ease;
-}
-.action-btn:hover { opacity: 0.92; box-shadow: 0 8px 22px rgba(0,0,0,0.15); }
-.action-btn.outline {
-  background: transparent;
-  border: 1px solid var(--border-color);
-  color: var(--text-primary);
-}
-
-/* STK Modal refinement */
-#stkPushModal {
-  backdrop-filter: blur(3px);
-}
-
-#copyToast {
-  backdrop-filter: saturate(160%) blur(4px);
-}
 /* ============================================================================
    MODERN TRADING PLATFORM DESIGN SYSTEM
    PreoCrypto - Professional Color Scheme & Components
@@ -297,98 +184,6 @@ code {
 
 .menu-toggle:hover {
   background: rgba(0, 212, 255, 0.1);
-}
-
-/* ============================================================================
-   CHART & TRADING CONTROLS — RESPONSIVE ENHANCEMENTS
-   Ensures manual trading is smooth and visible on mobile devices
-   ============================================================================ */
-
-/* Chart section sizing */
-.chart-container.large {
-  height: 62vh;
-  min-height: 320px;
-  display: flex;
-  flex-direction: column;
-}
-
-/* Main chart div fills section */
-#mainChart {
-  width: 100%;
-  height: 100%;
-  position: relative;
-  min-height: 280px;
-}
-
-/* Timeframe buttons & chart type buttons spacing */
-.timeframe-buttons .tf-btn,
-.chart-type-selector .chart-type-btn {
-  padding: 6px 10px;
-  border-radius: 8px;
-}
-
-/* Buy/Sell chart action buttons: mobile-friendly touch targets */
-.chart-action-btn {
-  min-width: 60px;
-  min-height: 44px;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-}
-
-/* Mobile tab nav visibility */
-.mobile-tab-nav {
-  display: flex;
-  gap: 8px;
-}
-
-.mobile-tab-btn {
-  padding: 8px 12px;
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  cursor: pointer;
-}
-
-@media (max-width: 992px) {
-  .chart-container.large { height: 60vh; }
-  .chart-action-btn { min-width: 56px; }
-}
-
-@media (max-width: 768px) {
-  .chart-container.large { height: 68vh; min-height: 420px; }
-  .chart-header {
-    flex-direction: column;
-    gap: 10px;
-    align-items: flex-start;
-  }
-  .timeframe-buttons {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 6px;
-  }
-  .timeframe-buttons .tf-btn { width: 100%; }
-  .chart-type-selector { padding-right: 0; border-right: none; }
-  /* Move Buy/Sell buttons to bottom corners on mobile */
-  #buyBtn { left: 12px !important; bottom: 12px !important; top: auto !important; }
-  #sellBtn { right: 12px !important; bottom: 12px !important; top: auto !important; }
-  /* Reduce overall padding to prevent content cropping */
-  .main-container { padding: var(--spacing-md); }
-  .top-nav { padding: var(--spacing-sm) var(--spacing-md); }
-  /* Ensure chart area can scroll if needed */
-  .chart-container { overflow: auto; }
-  /* Leave space for sticky trade bar */
-  .main-container { padding-bottom: 80px; }
-}
-
-@media (max-width: 480px) {
-  .chart-container.large { height: 72vh; min-height: 340px; }
-  .chart-action-btn { min-width: 52px; }
-  /* Compact header controls to avoid overlaying chart */
-  .chart-header { gap: 8px; }
-  .chart-type-selector .chart-type-btn { padding: 6px 8px; }
-  .timeframe-buttons .tf-btn { padding: 6px 8px; }
-  #mainChart { min-height: 320px; }
 }
 
 .logo {
@@ -599,30 +394,6 @@ code {
   gap: var(--spacing-lg);
 }
 
-/* Mobile/off-canvas side menu behavior */
-@media (max-width: 1024px) {
-  .menu-toggle { display: inline-block; }
-  .menu-close { display: block; }
-  .side-menu { transform: translateX(-100%); }
-  .side-menu.active { transform: translateX(0); }
-  .main-container { margin-left: 0; }
-}
-
-/* Compact mode styles */
-.compact-mode .main-container { padding: var(--spacing-md); }
-.compact-mode .chart-header { margin-bottom: var(--spacing-sm); }
-.compact-mode #indicatorValues { display: none !important; }
-.compact-mode #indicatorsTab { display: none !important; }
-.compact-mode .trade-header-actions { display: flex; gap: 8px; align-items: center; }
-.compact-mode .trade-header-actions .btn { padding: 6px 10px; font-weight: 600; }
-.compact-mode .trade-header-actions .buy { background: #16a34a; color: #fff; }
-.compact-mode .trade-header-actions .sell { background: #dc2626; color: #fff; }
-.compact-mode .trade-panel .buy,
-.compact-mode .trade-panel .sell { display: none !important; }
-.compact-mode .timeframe-buttons .tf-btn,
-.compact-mode .chart-type-selector .chart-type-btn { padding: 6px 8px; }
-.compact-mode #mainChart { height: 100%; }
-
 /* ============================================================================
    CARDS & CONTAINERS
    ============================================================================ */
@@ -830,8 +601,6 @@ code {
   background: var(--primary);
   border-color: var(--primary);
   color: var(--text-primary);
-  box-shadow: 0 6px 16px rgba(0, 85, 255, 0.25);
-  transform: translateY(-1px);
 }
 
 /* ============================================================================
@@ -1318,14 +1087,15 @@ button {
     height: 350px;
   }
   
-  /* Show Action and Change columns on mobile in condensed layout */
   .table-header,
   .table-row {
-    grid-template-columns: 1.2fr 1fr 0.8fr auto;
+    grid-template-columns: 1fr 1fr;
   }
-  .col-bid-ask { display: none; }
-  .col-change { display: block; text-align: right; }
-  .col-action { display: block; text-align: right; }
+  
+  .col-change,
+  .col-bid-ask {
+    display: none;
+  }
   
   .modal-content {
     width: 95%;
@@ -1370,14 +1140,14 @@ button {
     font-size: 24px;
   }
   
-  /* Extra small: keep 3 columns with Action button */
   .table-header,
   .table-row {
-    grid-template-columns: 1.2fr 1fr auto;
+    grid-template-columns: 1fr;
   }
-  .col-change { display: none; } /* hide change only on the smallest screens */
-  .col-bid-ask { display: none; }
-  .col-action { text-align: right; }
+  
+  .col-action {
+    text-align: left;
+  }
 }
 
 /* ============================================================================
@@ -1864,32 +1634,5 @@ button {
   .pairs-row {
     min-width: 400px;
   }
-}
-
-/* Sticky bottom trade bar for extra-small phones */
-.sticky-trade-bar {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--bg-secondary);
-  border-top: 1px solid var(--border-color);
-  padding: 10px 14px;
-  display: none;
-  gap: 10px;
-  z-index: 110;
-  box-shadow: 0 -8px 16px rgba(0,0,0,0.2);
-}
-.sticky-trade-bar .btn {
-  flex: 1 1 auto;
-  padding: 12px;
-  font-size: 15px;
-  font-weight: 700;
-}
-.sticky-trade-bar .buy { background: #16a34a; color: #fff; }
-.sticky-trade-bar .sell { background: #dc2626; color: #fff; }
-
-@media (max-width: 640px) {
-  .sticky-trade-bar { display: flex; }
 }
 

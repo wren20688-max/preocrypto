@@ -301,8 +301,8 @@
 
     <form id="loginForm" class="form modern-login">
       <div class="field">
-        <label for="email">Email Address</label>
-        <input id="email" type="email" placeholder="you@example.com" required>
+        <label for="username">Email or Username</label>
+        <input id="username" type="text" placeholder="you@example.com" required>
       </div>
 
       <div class="field">
@@ -317,171 +317,96 @@
 
       <button type="submit">Sign In</button>
 
-      <div class="divider">OR</div>
-
-      <button type="button" id="demoBtn">Quick Demo Login</button>
+      
 
       <div class="auth-links">
         <p style="margin: 0 0 8px; color: rgba(255,255,255,0.6); font-size: 13px;">
           Don't have an account? <a href="signup.html">Create one now</a>
         </p>
+        <p style="margin: 0; color: rgba(255,255,255,0.6); font-size: 13px;">
+          <a href="forgot.html">Forgot password?</a>
+        </p>
+        <p style="margin: 8px 0 0; color: rgba(255,255,255,0.6); font-size: 13px;">
+          <a href="#" id="identifyBtn">Find my account</a>
+        </p>
       </div>
     </form>
   </div>
 
+  <script src="config.js"></script>
+  <!-- config.js already loaded above to provide API_BASE; footer intentionally omitted on login -->
+  
+  
   <script>
     // Load saved credentials on page load
     window.addEventListener('DOMContentLoaded', function() {
-      const savedEmail = localStorage.getItem('preo_saved_email');
+      const savedEmail = localStorage.getItem('preo_saved_user');
       const savedRemember = localStorage.getItem('preo_remember_me');
-      const savedPassword = localStorage.getItem('preo_saved_password');
       
       if (savedEmail && savedRemember === 'true') {
-        document.getElementById('email').value = savedEmail;
-        // Only auto-fill password if explicitly saved
-        if (savedPassword) {
-          document.getElementById('password').value = savedPassword;
-        }
+        document.getElementById('username').value = savedEmail;
         document.getElementById('rememberMe').checked = true;
       }
-      
-      // Debug: Log users stored
-      const users = JSON.parse(localStorage.getItem('users') || '[]');
-      console.log('Users in localStorage:', users.length, 'users');
-      if (users.length > 0) {
-        console.log('Registered emails:', users.map(u => u.email));
-      }
     });
-
-    // Simple verification login: accept email or username + password
+    // Secure login using server API — no local demo accounts
     document.getElementById('loginForm').addEventListener('submit', function (e) {
       e.preventDefault();
-      const ident = document.getElementById('email').value.trim();
+      const ident = document.getElementById('username').value.trim();
       const pwd = document.getElementById('password').value;
       const rememberMe = document.getElementById('rememberMe').checked;
-      const users = JSON.parse(localStorage.getItem('users') || '[]');
 
-      console.log('Login attempt:', ident, 'Total users:', users.length);
+      if (!ident || !pwd) { alert('Please enter your credentials'); return; }
 
-      // Save remember me preference
-      if (rememberMe) {
-        localStorage.setItem('preo_saved_email', ident);
-        localStorage.setItem('preo_remember_me', 'true');
-        localStorage.setItem('preo_saved_password', pwd); // Save password if remember me checked
-      } else {
-        localStorage.removeItem('preo_saved_email');
-        localStorage.removeItem('preo_remember_me');
-        localStorage.removeItem('preo_saved_password');
-      }
-
-      // require matching email and password
-      const found = users.find(u => (u.email && u.email.toLowerCase() === ident.toLowerCase()));
-      
-      // Check if it's admin email
-      const adminEmail = 'wren20688@gmail.com';
-      if (ident.toLowerCase() === adminEmail.toLowerCase() && pwd === 'Jos134ka2') {
-        console.log('✓ Admin login successful');
-        const adminData = {
-          username: 'admin',
-          email: adminEmail,
-          role: 'admin',
-          timestamp: new Date().getTime(),
-          isAdmin: true
-        };
-        localStorage.setItem('preo_user', JSON.stringify(adminData));
-        localStorage.setItem('preo_token', 'admin_token_' + Date.now());
-        localStorage.setItem('preo_last_login', adminEmail);
-        window.location.href = 'admin-panel.html';
-        return;
-      }
-
-      // Check if marketer
-      const marketers = JSON.parse(localStorage.getItem('marketers') || '[]');
-      const marketerFound = marketers.find(m => 
-        (m.email && m.email.toLowerCase() === ident.toLowerCase()) || 
-        (m.username && m.username.toLowerCase() === ident.toLowerCase())
-      );
-
-      if (marketerFound && marketerFound.password === pwd) {
-        console.log('✓ Marketer login successful:', marketerFound.email);
-        const marketerData = {
-          username: marketerFound.username,
-          email: marketerFound.email,
-          timestamp: new Date().getTime(),
-          isRegistered: true,
-          isMarketer: true,
-          winPercent: marketerFound.winPercent
-        };
-        localStorage.setItem('preo_user', JSON.stringify(marketerData));
-        localStorage.setItem('preo_token', 'token_' + Date.now());
-        localStorage.setItem('preo_last_login', ident);
-        window.location.href = 'dashboard.html';
-        return;
-      }
-      
-      if (found && found.password === pwd) {
-        console.log('✓ Login successful for:', found.email);
-        // store session with all user data
-        const userData = {
-          username: found.username || found.email,
-          email: found.email,
-          timestamp: new Date().getTime(),
-          isRegistered: true
-        };
-        localStorage.setItem('preo_user', JSON.stringify(userData));
-        localStorage.setItem('preo_token', 'token_' + Date.now());
-        localStorage.setItem('preo_last_login', ident); // Track last successful login
-        window.location.href = 'dashboard.html';
-        return;
-      }
-
-      // If user entered a new email and no users exist, allow demo signup
-      if (users.length === 0 && ident && pwd.length >= 6) {
-        console.log('! No users found, creating demo account for:', ident);
-        // Create and save new user
-        const newUser = {
-          username: ident.split('@')[0],
-          email: ident,
-          password: pwd,
-          created: new Date().toISOString(),
-          verified: true
-        };
-        users.push(newUser);
-        localStorage.setItem('users', JSON.stringify(users));
-        
-        // Auto-login
-        const userData = {
-          username: newUser.username,
-          email: newUser.email,
-          timestamp: new Date().getTime(),
-          isRegistered: true
-        };
-        localStorage.setItem('preo_user', JSON.stringify(userData));
-        localStorage.setItem('preo_token', 'token_' + Date.now());
-        localStorage.setItem('preo_last_login', ident);
-        
-        alert('✅ Account created successfully! Logging in...');
-        window.location.href = 'dashboard.html';
-        return;
-      }
-
-      console.log('✗ Invalid credentials');
-      alert('❌ Invalid credentials. Please check your email and password.\n\nIf you don\'t have an account, please sign up first.');
+      (window.apiFetch || fetch)('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: ident, password: pwd })
+      })
+      .then(async res => {
+        if (!res.ok) {
+          const d = await res.json().catch(()=>({error:'Login failed'}));
+          throw new Error(d.error || 'Login failed');
+        }
+        return res.json();
+      })
+      .then(data => {
+        const { token, user } = data;
+        localStorage.setItem('preo_token', token);
+        localStorage.setItem('preo_user', JSON.stringify({ username: user.name || user.username, email: user.username, role: user.isAdmin ? 'admin' : 'trader' }));
+        if (rememberMe) {
+          localStorage.setItem('preo_saved_user', ident);
+          localStorage.setItem('preo_remember_me', 'true');
+        } else {
+          localStorage.removeItem('preo_saved_user');
+          localStorage.removeItem('preo_remember_me');
+        }
+        window.location.href = user.isAdmin ? 'admin.html' : 'dashboard.html';
+      })
+      .catch(err => alert('❌ ' + err.message));
     });
 
-    // Demo quick-login button
-    document.getElementById('demoBtn').addEventListener('click', function () {
-      const userData = {
-        username: 'demo_user',
-        email: 'demo@preocrypto.local',
-        timestamp: new Date().getTime(),
-        isDemo: true
-      };
-      localStorage.setItem('preo_user', JSON.stringify(userData));
-      localStorage.setItem('preo_token', 'token_' + Date.now());
-      localStorage.setItem('preo_last_login', 'demo@preocrypto.local');
-      window.location.href = 'dashboard.html';
-    });
+    // Assist user in finding the correct identifier (username vs email)
+    const identifyBtn = document.getElementById('identifyBtn');
+    if (identifyBtn) {
+      identifyBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const ident = document.getElementById('username').value.trim();
+        if (!ident) { alert('Enter your email or username first'); return; }
+        try {
+          const res = await (window.apiFetch||fetch)('/api/auth/identify', {
+            method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ identifier: ident })
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error||'Not found');
+          const msg = `Matched account\nUsername: ${data.username}\nEmail: ${data.email || '—'}\nCreated: ${data.createdAt ? new Date(data.createdAt).toLocaleString() : '—'}`;
+          alert(msg);
+          // Prefill with the canonical username to ensure login matches
+          document.getElementById('username').value = data.username;
+        } catch(err){
+          alert('❌ ' + err.message);
+        }
+      });
+    }
   </script>
 </body>
 </html>

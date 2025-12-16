@@ -73,6 +73,7 @@
   </main>
 
   <script src="storage.js"></script>
+  <script src="config.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       if (!storage.isLoggedIn()) {
@@ -93,96 +94,75 @@
     function loadTransactions() {
       const el = document.getElementById('allTransactionsList');
       const user = JSON.parse(localStorage.getItem('preo_user') || '{}');
-      const isMarketer = user.isMarketer || false;
-      const userEmail = user.email || user.username;
-      
-      console.log('🔍 Loading transactions for:', userEmail, 'isMarketer:', isMarketer);
-      
-      let transactions = [];
-      
-      // Get trades from storage - only show closed trades
-      const tradesData = localStorage.getItem('preo_trades');
-      if (tradesData) {
-        try {
-          const trades = JSON.parse(tradesData);
-          transactions = transactions.concat(trades
-            .filter(trade => trade.status === 'closed')
-            .map(trade => ({
-              date: new Date(trade.timestamp).toISOString().split('T')[0],
-              type: `Trade Closed - ${trade.pnl >= 0 ? 'Profit' : 'Loss'} of $${Math.abs(trade.pnl || 0).toFixed(2)}`,
-              method: trade.pair,
-              amount: (trade.pnl >= 0 ? '+' : '') + '$' + Math.abs(trade.pnl || 0).toFixed(2),
-              status: 'Completed'
-            })));
-        } catch (e) { console.error('Error loading trades:', e); }
-      }
-      
-      // Get deposits from storage - filter by current user
-      const depositsData = localStorage.getItem('deposits');
-      if (depositsData) {
-        try {
-          const deposits = JSON.parse(depositsData);
-          console.log('📊 All deposits:', deposits);
-          const userDeposits = deposits.filter(d => d.user === userEmail || d.user === user.username);
-          console.log('💰 Filtered deposits for user:', userDeposits);
-          transactions = transactions.concat(userDeposits.map(d => ({
-            date: new Date(d.timestamp).toISOString().split('T')[0],
-            type: 'Deposit',
-            method: d.method,
-            amount: '+$' + (d.amount || 0).toFixed(2),
-            status: d.status === 'completed' ? 'Completed' : 'Pending'
-          })));
-        } catch (e) { console.error('Error loading deposits:', e); }
-      }
-      
-      // Get withdrawals from storage - filter by current user
-      const withdrawalsData = localStorage.getItem('withdrawals');
-      if (withdrawalsData) {
-        try {
-          const withdrawals = JSON.parse(withdrawalsData);
-          transactions = transactions.concat(withdrawals
-            .filter(w => w.user === userEmail || w.user === user.username)
-            .map(w => ({
-              date: new Date(w.timestamp).toISOString().split('T')[0],
-              type: 'Withdrawal',
-              method: w.method,
-              amount: '-$' + (w.amount || 0).toFixed(2),
-              status: isMarketer ? 'Completed' : 'Pending'
-            })));
-        } catch (e) { console.error('Error loading withdrawals:', e); }
-      }
-      
-      // Sort by date descending (newest first)
-      transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
-      
-      console.log('📋 Total transactions:', transactions.length, transactions);
-      
-      // If no transactions, show empty message with demo data option
-      if (transactions.length === 0) {
-        el.innerHTML = `
-          <div style="padding: 30px; text-align: center; color: var(--text-secondary);">
-            <p>No transactions yet. Start trading to see your activity here.</p>
-            <p style="font-size: 12px; margin-top: 10px; color: #888;">Debug: Email=${userEmail}, isMarketer=${isMarketer}</p>
-            <button onclick="loadDemoTransactions()" style="margin-top: 15px; padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
-              Load Demo Data
-            </button>
-          </div>
-        `;
-        return;
-      }
+      const token = localStorage.getItem('preo_token') || '';
 
-      el.innerHTML = transactions.map(t => `
-        <div style="padding: 15px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
-          <div>
-            <strong>${t.type}</strong>
-            <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">${t.date} • ${t.method}</div>
-          </div>
-          <div style="text-align: right;">
-            <strong style="color: ${t.amount.startsWith('+') ? 'var(--success)' : 'var(--danger)'}">${t.amount}</strong>
-            <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">${t.status}</div>
-          </div>
-        </div>
-      `).join('');
+      let transactions = [];
+
+      // Load server transactions (deposits/withdrawals/etc.)
+      (window.apiFetch || fetch)('/api/transactions?limit=200', { headers: { 'Authorization': 'Bearer ' + token } })
+        .then(r => r.ok ? r.json() : [])
+        .then(serverTx => {
+          if (Array.isArray(serverTx)) {
+            transactions = transactions.concat(serverTx.map(t => {
+              const isCredit = t.type === 'deposit' || t.type === 'withdrawal_approved' || (t.pnl && t.pnl > 0);
+              let amountStr = '';
+              if (typeof t.amount === 'number') amountStr = (t.type === 'deposit' ? '+' : t.type === 'withdrawal' ? '-' : '') + '$' + Math.abs(t.amount).toFixed(2);
+              if (!amountStr && typeof t.pnl === 'number') amountStr = (t.pnl >= 0 ? '+' : '-') + '$' + Math.abs(t.pnl).toFixed(2);
+              const method = t.method || t.pair || t.type;
+              return {
+                date: new Date(t.timestamp).toISOString().split('T')[0],
+                type: t.type.replace('_', ' ').toUpperCase(),
+                method: method,
+                amount: amountStr || '$0.00',
+                status: (t.status || 'Completed').toString()
+              };
+            }));
+          }
+
+          // Merge in local closed trades as supplemental records
+          const tradesData = localStorage.getItem('preo_trades');
+          if (tradesData) {
+            try {
+              const trades = JSON.parse(tradesData);
+              transactions = transactions.concat(trades
+                .filter(trade => trade.status === 'closed')
+                .map(trade => ({
+                  date: new Date(trade.timestamp).toISOString().split('T')[0],
+                  type: `TRADE CLOSED`,
+                  method: trade.pair,
+                  amount: (trade.pnl >= 0 ? '+' : '-') + '$' + Math.abs(trade.pnl || 0).toFixed(2),
+                  status: 'Completed'
+                })));
+            } catch (e) {}
+          }
+
+          // Sort newest first
+          transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+          if (transactions.length === 0) {
+            el.innerHTML = `
+              <div style="padding: 30px; text-align: center; color: var(--text-secondary);">
+                <p>No transactions yet. Start trading to see your activity here.</p>
+                <button onclick=\"loadDemoTransactions()\" style=\"margin-top: 15px; padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;\">Load Demo Data</button>
+              </div>`;
+            return;
+          }
+
+          el.innerHTML = transactions.map(t => `
+            <div style="padding: 15px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <strong>${t.type}</strong>
+                <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">${t.date} • ${t.method}</div>
+              </div>
+              <div style="text-align: right;">
+                <strong style="color: ${t.amount.startsWith('+') ? 'var(--success)' : 'var(--danger)'}">${t.amount}</strong>
+                <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">${t.status}</div>
+              </div>
+            </div>`).join('');
+        })
+        .catch(() => {
+          el.innerHTML = '<div class="empty-state">Failed to load transactions.</div>';
+        });
     }
 
     function applyTransactionFilters() {
@@ -259,6 +239,20 @@
       loadTransactions();
       alert('Demo data loaded! You can now see sample transactions.');
     }
+  </script>
+  <script>
+    // Footer injection
+    (function(){
+      const y = new Date().getFullYear();
+      const c = (window.appConfig && window.appConfig.companyName) || 'PreoCrypto';
+      const em = (window.appConfig && window.appConfig.supportEmail) || 'support@example.com';
+      const ph = (window.appConfig && window.appConfig.supportPhone) || '+000 000 0000';
+      const f = document.createElement('footer');
+      f.className = 'site-footer';
+      f.style.cssText = 'margin-top:24px;padding:14px;text-align:center;color:var(--text-tertiary);border-top:1px solid var(--border-color);';
+      f.innerHTML = `© ${y} ${c} • Customer Care: <a href="tel:${ph}" style="color:var(--text-tertiary);">${ph}</a> • <a href="mailto:${em}" style="color:var(--text-tertiary);">${em}</a>`;
+      document.body.appendChild(f);
+    })();
   </script>
 </body>
 </html>

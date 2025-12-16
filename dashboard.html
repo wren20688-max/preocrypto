@@ -5,8 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Trading Dashboard — PreoCrypto</title>
   <link rel="stylesheet" href="style.css">
-  <script defer src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.0.0/dist/lightweight-charts.standalone.production.min.js" onerror="(function(){var s=document.createElement('script');s.src='libs/lightweight-charts.min.js';document.head.appendChild(s);})()"></script>
-  <meta name="api-base" content="">
+  <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.0.0/dist/lightweight-charts.standalone.production.min.js"></script>
 </head>
 <body>
   <!-- Top Navigation -->
@@ -119,6 +118,27 @@
 
     <!-- Account Summary Cards -->
     <section class="account-summary">
+          <!-- Chart Controls -->
+          <section style="display:flex; gap:10px; align-items:center; padding:12px;">
+            <label style="color:var(--text-secondary);">Timeframe:</label>
+            <select id="timeframeSelect" style="padding:8px;">
+              <option value="5">5s</option>
+              <option value="15">15s</option>
+              <option value="60">1m</option>
+              <option value="300">5m</option>
+            </select>
+            <label style="color:var(--text-secondary); margin-left:12px;">Chart Type:</label>
+            <select id="chartTypeSelect" style="padding:8px;">
+              <option value="candlestick">Candlestick</option>
+              <option value="bar">Bar</option>
+            </select>
+            <div id="accountOpenLabel" style="margin-left:auto; color:var(--text-tertiary);"></div>
+          </section>
+
+          <!-- Chart Container -->
+          <section>
+            <div id="chartContainer" style="height:420px;"></div>
+          </section>
       <div class="summary-card">
         <div class="summary-label">Account Balance</div>
         <div class="summary-value" id="balance">$10,000.00</div>
@@ -141,10 +161,6 @@
       </div>
 
       <div class="account-toggle">
-              <section>
-                <h2>Live Prices</h2>
-                <div id="live-prices">Loading...</div>
-              </section>
         <button id="accountToggle" class="toggle-btn demo-active">Demo Account</button>
         <button id="realAccountToggle" class="toggle-btn">Real Account</button>
       </div>
@@ -157,7 +173,7 @@
     </section>
 
     <!-- Main Chart (Mobile Tab 1) -->
-    <section id="chartTab" class="chart-container large chart-tab-content active">
+    <section id="chartTab" class="chart-container large chart-tab-content">
       <div class="chart-header">
         <div style="display: flex; gap: 20px; align-items: center;">
           <div>
@@ -209,29 +225,26 @@
             </select>
           </div>
         </div>
-        <div class="trade-header-actions" aria-label="Trade actions">
-          <button id="buyHeaderBtn" class="btn buy">Buy</button>
-          <button id="sellHeaderBtn" class="btn sell">Sell</button>
-        </div>
         <div style="display: flex; gap: 12px; align-items: center;">
           <div class="chart-type-selector" style="display: flex; align-items: center; gap: 8px; border-right: 1px solid var(--border-color); padding-right: 12px;">
             <label style="font-size: 12px; color: var(--text-tertiary); white-space: nowrap;">Chart Type:</label>
-            <button class="chart-type-btn" data-type="candlestick" title="Candlestick" style="padding: 6px 10px; border: 2px solid transparent;">🕯️ Candlestick</button>
+            <button class="chart-type-btn active" data-type="candlestick" title="Candlestick" style="padding: 6px 10px; border: 2px solid transparent;">🕯️ Candlestick</button>
             <button class="chart-type-btn" data-type="line" title="Line" style="padding: 6px 10px; border: 2px solid transparent;">📈 Line</button>
-            <button class="chart-type-btn active" data-type="area" title="Area" style="padding: 6px 10px; border: 2px solid transparent;">📊 Area</button>
+            <button class="chart-type-btn" data-type="area" title="Area" style="padding: 6px 10px; border: 2px solid transparent;">📊 Area</button>
             <button class="chart-type-btn" data-type="bar" title="Bar" style="padding: 6px 10px; border: 2px solid transparent;">📉 Bar</button>
           </div>
           <div class="timeframe-buttons">
             <button class="tf-btn" data-tf="1">1S</button>
-            <button class="tf-btn active" data-tf="5">5S</button>
-            <button class="tf-btn" data-tf="60">1M</button>
-            <button class="tf-btn" data-tf="300">5M</button>
-            <button class="tf-btn" data-tf="900">15M</button>
-            <button class="tf-btn" data-tf="3600">1H</button>
-            <button class="tf-btn" data-tf="14400">4H</button>
-            <button class="tf-btn" data-tf="86400">1D</button>
+            <button class="tf-btn active" data-tf="60">1M</button>
+            <button class="tf-btn" data-tf="5">5M</button>
+            <button class="tf-btn" data-tf="15">15M</button>
+            <button class="tf-btn" data-tf="60">1H</button>
+            <button class="tf-btn" data-tf="240">4H</button>
+            <button class="tf-btn" data-tf="1440">1D</button>
           </div>
-          <button id="compactModeToggle" class="nav-btn" title="Compact Mode" style="margin-left: 8px;">Compact</button>
+          <div id="accountOpenLabel" style="font-size: 11px; color: var(--text-tertiary); margin-left: 12px;">
+        
+          </div>
         </div>
       </div>
       <div style="position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; flex: 1;">
@@ -359,6 +372,12 @@
         <div id="recentTradesList" class="empty-state">No trades yet</div>
       </section>
     </div>
+
+    <!-- Recent Wins -->
+    <section class="content-card" style="grid-column: 1 / -1;">
+      <h3>🏆 Recent Wins</h3>
+      <div id="recentWinsList" class="empty-state">No winning trades yet</div>
+    </section>
   </main>
 
   <!-- Trade Modal -->
@@ -393,7 +412,7 @@
         <div class="form-group">
           <label for="tradeVolume">Volume (Lots)</label>
           <input type="number" id="tradeVolume" placeholder="0.1" min="0.01" step="0.01" required>
-          <div class="form-helper">Minimum trade amount: $15 (≈ 0.15 lots)</div>
+          <div class="form-helper">Minimum: 0.01 lots</div>
         </div>
 
         <!-- Hold Time -->
@@ -456,18 +475,31 @@
         <button type="submit" class="btn btn-primary" style="width: 100%; padding: var(--spacing-md); font-size: 16;">
           Execute Trade
         </button>
+        <div style="text-align:center; margin-top:10px;">
+          <a href="payment-methods.html" class="btn btn-outline btn-small">Quick Deposit (M-Pesa)</a>
+        </div>
       </form>
     </div>
   </div>
 
   <!-- Scripts -->
+  <script src="config.js"></script>
   <script src="storage.js"></script>
   <script src="dashboard-app.js"></script>
-  <!-- Sticky bottom Buy/Sell bar for extra small phones -->
-  <div id="stickyTradeBar" class="sticky-trade-bar" role="toolbar" aria-label="Quick Trade">
-    <button id="stickyBuyBtn" class="btn buy">Buy</button>
-    <button id="stickySellBtn" class="btn sell">Sell</button>
-  </div>
+  <script>
+    // Inject footer with placeholders from appConfig
+    (function(){
+      const y = new Date().getFullYear();
+      const c = (window.appConfig && window.appConfig.companyName) || 'PreoCrypto';
+      const em = (window.appConfig && window.appConfig.supportEmail) || 'support@example.com';
+      const ph = (window.appConfig && window.appConfig.supportPhone) || '+000 000 0000';
+      const f = document.createElement('footer');
+      f.className = 'site-footer';
+      f.style.cssText = 'margin-top:24px;padding:14px;text-align:center;color:var(--text-tertiary);border-top:1px solid var(--border-color);';
+      f.innerHTML = `© ${y} ${c} • Customer Care: <a href="tel:${ph}" style="color:var(--text-tertiary);">${ph}</a> • <a href="mailto:${em}" style="color:var(--text-tertiary);">${em}</a>`;
+      document.body.appendChild(f);
+    })();
+  </script>
 </body>
 </html>
 

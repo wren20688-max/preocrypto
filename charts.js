@@ -38,10 +38,7 @@
 
     const right = document.createElement('div');
     right.style.fontFamily='monospace';
-    right.style.display='flex';
-    right.style.gap='12px';
     const priceLabel = document.createElement('div'); priceLabel.id='sim-price-label'; right.appendChild(priceLabel);
-    const spreadLabel = document.createElement('div'); spreadLabel.id='sim-spread-label'; right.appendChild(spreadLabel);
 
     header.appendChild(left); header.appendChild(right);
     container.insertBefore(header, canvas);
@@ -52,8 +49,6 @@
 
     // simple simulated series storage
     let series = [];
-    let spreadPips = 1.5; // default simulated spread in pips
-    let volatility = 0.0006; // base volatility factor
     function initSeries(centerPrice){
       series = [];
       const now = Math.floor(Date.now()/1000);
@@ -72,9 +67,9 @@
     function addCandleFromBase(base){
       const last = series[series.length-1];
       const open = last ? last.close : base;
-      const close = open + (Math.random()-0.5)*(base*volatility);
-      const high = Math.max(open,close) + Math.abs((Math.random()-0.5)*(base*volatility*0.5));
-      const low = Math.min(open,close) - Math.abs((Math.random()-0.5)*(base*volatility*0.5));
+      const close = open + (Math.random()-0.5)*(base*0.0005);
+      const high = Math.max(open,close) + Math.abs((Math.random()-0.5)*(base*0.00025));
+      const low = Math.min(open,close) - Math.abs((Math.random()-0.5)*(base*0.00025));
       const now = Math.floor(Date.now()/1000);
       const c = { time: now, open: parseFloat(open.toFixed(5)), high: parseFloat(high.toFixed(5)), low: parseFloat(low.toFixed(5)), close: parseFloat(close.toFixed(5)) };
       series.push(c); if(series.length>200) series.shift();
@@ -120,19 +115,7 @@
     // wire select change and price updates
     select.addEventListener('change', ()=>{ const sym=select.value; const a=(typeof assets!=='undefined')? assets.find(x=>x.symbol===sym):null; initSeries(a? a.price : undefined); draw(); });
 
-    function updatePriceLabel(){
-      const sym=select.value;
-      const a=(typeof assets!=='undefined')? assets.find(x=>x.symbol===sym):null;
-      const last = series[series.length-1];
-      const mid = a? a.price : (last? last.close : 0);
-      const pip = 0.0001; // assume 5-digit for FX-like
-      const halfSpread = (spreadPips * pip) / 2;
-      const bid = mid - halfSpread;
-      const ask = mid + halfSpread;
-      priceLabel.textContent = `MID ${(mid || 0).toFixed(5)}  BID ${(bid || 0).toFixed(5)}  ASK ${(ask || 0).toFixed(5)}`;
-      spreadLabel.textContent = `Spread ${spreadPips.toFixed(1)} pips`;
-      assetLabel.textContent = select.value;
-    }
+    function updatePriceLabel(){ const sym=select.value; const a=(typeof assets!=='undefined')? assets.find(x=>x.symbol===sym):null; const last = series[series.length-1]; const p = a? a.price : (last? last.close : 0); priceLabel.textContent = (p || 0).toFixed(5); assetLabel.textContent = select.value; }
 
     // initialize
     const initialAsset = select.value || (typeof assets!=='undefined' && assets[0] && assets[0].symbol) || 'EURUSD'; select.value = initialAsset;
@@ -141,25 +124,16 @@
     draw(); updatePriceLabel();
 
     // periodic updates
-    // faster movement updates
     setInterval(()=>{
       const sym = select.value; const a=(typeof assets!=='undefined')? assets.find(x=>x.symbol===sym):null; const base = a? a.price : (series[series.length-1] && series[series.length-1].close) || 1;
       addCandleFromBase(base);
       draw();
-    }, 600);
+    }, 2000);
 
-    setInterval(()=>{ updatePriceLabel(); }, 300);
+    setInterval(()=>{ updatePriceLabel(); }, 1000);
 
     // on resize
     window.addEventListener('resize', ()=>{ draw(); });
-
-    // adjust spread and volatility based on asset selection (simple heuristics)
-    select.addEventListener('change', ()=>{
-      const sym = select.value || '';
-      if (/BTC|ETH|TRX|USDT/i.test(sym)) { spreadPips = 25; volatility = 0.003; }
-      else if (/JPY/i.test(sym)) { spreadPips = 1.8; volatility = 0.0007; }
-      else { spreadPips = 1.2; volatility = 0.0005; }
-    });
 
     // expose for debugging
     window._simChart = { draw, initSeries };
