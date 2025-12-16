@@ -242,23 +242,29 @@
       document.getElementById('stkResponse').style.display = 'block';
       document.getElementById('stkPhoneDisplay').textContent = 'Phone: ' + phone + '\nAmount: $' + amount.toFixed(2) + '\nStatus: ⏳ Redirecting to PayHero...';
       
-      // Try PayHero intent
+      // Create intent via Netlify function (server-side)
       try {
         const user = storage.getUser() || { username: 'user' };
-        const intent = await PayHeroIntegration.createPaymentIntent({
-          amount,
-          method: 'mpesa',
-          currency: 'USD',
-          userId: user.email || user.username,
-          userEmail: user.email || user.username,
-          userName: user.username || 'User',
-          phone
+        const resp = await fetch('/api/payment/intent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            amount,
+            currency: 'KES',
+            phone,
+            metadata: {
+              user: user.username || user.email || 'unknown',
+              source: 'payment-methods',
+              quick: new URLSearchParams(window.location.search).get('quick') ? '1' : '0'
+            }
+          })
         });
-
-        if (intent.success && intent.paymentUrl) {
-          window.open(intent.paymentUrl, '_blank');
+        const intent = await resp.json();
+        if (resp.ok && (intent.redirect_url || intent.paymentUrl)) {
+          const url = intent.redirect_url || intent.paymentUrl;
+          window.open(url, '_blank');
         } else {
-          alert('Unable to create PayHero payment. Please try again.');
+          alert(intent.error || 'Unable to create PayHero payment. Please try again.');
         }
       } catch (e) {
         console.warn('PayHero intent failed:', e.message);

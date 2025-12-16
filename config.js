@@ -70,13 +70,14 @@
   try {
     const isLocalhost = ['localhost', '127.0.0.1'].includes(location.hostname);
     const isVercel = location.hostname.endsWith('.vercel.app');
+    const isNetlify = location.hostname.endsWith('.netlify.app');
     const samePort = (location.port === '5000');
     const defaultBase = `${location.protocol}//${location.hostname}:5000`;
     const savedBase = localStorage.getItem('preo_api_base');
     const configured = (typeof window.API_BASE === 'string' && window.API_BASE.length > 0) ? window.API_BASE : null;
-    // On Vercel or any non-localhost host, prefer same-origin serverless functions (empty base)
-    const base = (isVercel || (!isLocalhost && !samePort)) ? '' : (samePort ? '' : (configured || savedBase || defaultBase));
-    window.API_BASE = base; // '' => same-origin (Vercel functions under /api)
+    // On Vercel/Netlify or any non-localhost host, prefer same-origin serverless functions (empty base)
+    const base = (isVercel || isNetlify || (!isLocalhost && !samePort)) ? '' : (samePort ? '' : (configured || savedBase || defaultBase));
+    window.API_BASE = base; // '' => same-origin (Vercel/Netlify functions under /api)
 
     window.apiFetch = async function(path, options) {
       const urlPrimary = (path.startsWith('http://') || path.startsWith('https://')) ? path : (window.API_BASE || '') + path;
