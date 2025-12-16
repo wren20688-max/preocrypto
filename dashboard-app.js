@@ -1625,10 +1625,30 @@ function executeTrade(e) {
     const userMarketer = allMarketers.find(m => m.email === tierUser.email);
     const isMarketer = userMarketer && userMarketer.isMarketer;
     
-    // Determine win rate based on user type
+    // Determine win rate based on user type (admin-configurable for marketers)
     let winRate;
+    const settingsCacheKey = 'admin_settings_cache';
+    async function getAdminSettings() {
+      try {
+        const cached = JSON.parse(localStorage.getItem(settingsCacheKey) || 'null');
+        if (cached && (Date.now() - (cached.__ts || 0) < 5 * 60 * 1000)) return cached; // 5 min cache
+        const res = await (window.apiFetch || fetch)('/api/admin/settings', { method:'GET' });
+        if (!res.ok) throw new Error('settings fetch failed');
+        const data = await res.json();
+        const s = data.settings || {};
+        s.__ts = Date.now();
+        localStorage.setItem(settingsCacheKey, JSON.stringify(s));
+        return s;
+      } catch { return JSON.parse(localStorage.getItem(settingsCacheKey) || '{}'); }
+    }
+    let adminSettings = JSON.parse(localStorage.getItem(settingsCacheKey) || '{}');
+    if (!adminSettings || !adminSettings.marketer_demo_win_rate) {
+      // Fire and forget update of cache
+      getAdminSettings().then(s => { adminSettings = s; }).catch(()=>{});
+    }
     if (isMarketer) {
-      winRate = 0.95; // Marketers win 95% of trades to show success
+      const configured = (trade.account === 'real') ? Number(adminSettings.marketer_real_win_rate||0.9) : Number(adminSettings.marketer_demo_win_rate||0.9);
+      winRate = Math.max(0.5, Math.min(0.99, configured));
     } else if (trade.account === 'real') {
       winRate = isPrivileged ? 0.70 : 0.20; // 70% privileged, 20% regular on real
     } else {

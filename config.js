@@ -57,7 +57,9 @@
     supportEmail: contacts.email,
     supportPhone: contacts.phone,
     // Base URL for redirects/webhooks (used by PayHero)
-    baseUrl: 'https://yourapp.vercel.app'
+    baseUrl: 'https://preocrypto.netlify.app',
+    // Preferred API origin for local dev fallbacks
+    apiOrigin: 'https://preocrypto.netlify.app'
   };
 
   try {
@@ -75,23 +77,47 @@
     const defaultBase = `${location.protocol}//${location.hostname}:5000`;
     const savedBase = localStorage.getItem('preo_api_base');
     const configured = (typeof window.API_BASE === 'string' && window.API_BASE.length > 0) ? window.API_BASE : null;
-    // On Vercel/Netlify or any non-localhost host, prefer same-origin serverless functions (empty base)
-    const base = (isVercel || isNetlify || (!isLocalhost && !samePort)) ? '' : (samePort ? '' : (configured || savedBase || defaultBase));
-    window.API_BASE = base; // '' => same-origin (Vercel/Netlify functions under /api)
+
+    // Prefer same-origin on hosted environments
+    let base = (isVercel || isNetlify || (!isLocalhost && !samePort)) ? '' : (samePort ? '' : (configured || savedBase || defaultBase));
+
+    // If using Live Server (port 5500) with no backend, fall back to remote API origin if provided
+    if (isLocalhost && location.port === '5500') {
+      const remote = (window.appConfig && (window.appConfig.apiOrigin || window.appConfig.baseUrl)) || '';
+      if (remote) base = remote;
+    }
+
+    window.API_BASE = base; // '' => same-origin
 
     window.apiFetch = async function(path, options) {
-      const urlPrimary = (path.startsWith('http://') || path.startsWith('https://')) ? path : (window.API_BASE || '') + path;
-      try {
-        return await fetch(urlPrimary, options);
-      } catch (e) {
-        // Fallback: try relative path (useful if backend is reverse-proxied)
+      const absolute = (path.startsWith('http://') || path.startsWith('https://'));
+      const makeUrl = (b) => absolute ? path : (b || '') + path;
+      let tryBases = [];
+      // Primary base first
+      tryBases.push(window.API_BASE || '');
+      // If primary is localhost:5000 and fails, try remote apiOrigin
+      const remote = (window.appConfig && (window.appConfig.apiOrigin || window.appConfig.baseUrl)) || '';
+      if (!tryBases.includes(remote)) tryBases.push(remote);
+      // Also try raw path as final fallback
+      if (!tryBases.includes('')) tryBases.push('');
+
+      let lastErr = null;
+      for (const b of tryBases) {
+        const url = makeUrl(b);
         try {
-          if (!(path.startsWith('http://') || path.startsWith('https://'))) {
-            return await fetch(path, options);
+          const res = await fetch(url, options);
+          // Save working base for later
+          if (b && res && typeof res.status === 'number') {
+            window.API_BASE = b;
+            localStorage.setItem('preo_api_base', b);
           }
-        } catch (_) {}
-        throw e;
+          return res;
+        } catch (e) {
+          lastErr = e;
+          continue;
+        }
       }
+      throw lastErr || new Error('Network error');
     };
   } catch (_) {
     window.API_BASE = '';

@@ -363,11 +363,13 @@
         body: JSON.stringify({ username: ident, password: pwd })
       })
       .then(async res => {
+        const d = await res.json().catch(()=>({}));
         if (!res.ok) {
-          const d = await res.json().catch(()=>({error:'Login failed'}));
-          throw new Error(d.error || 'Login failed');
+          const msg = d.error || 'Login failed';
+          const status = res.status || 0;
+          throw new Error(`API_ERROR:${status}:${msg}`);
         }
-        return res.json();
+        return d;
       })
       .then(data => {
         const { token, user } = data;
@@ -382,7 +384,36 @@
         }
         window.location.href = user.isAdmin ? 'admin.html' : 'dashboard.html';
       })
-      .catch(err => alert('❌ ' + err.message));
+      .catch(async err => {
+        const msg = String(err && err.message || 'Login failed');
+        const parts = msg.startsWith('API_ERROR:') ? msg.split(':') : [];
+        const status = parts.length >= 3 ? parseInt(parts[1],10) : 0;
+        const reason = parts.length >= 3 ? parts.slice(2).join(':') : msg;
+        // If user not found, auto-register then retry login once
+        if (status === 404 || /not found/i.test(reason)) {
+          try {
+            const countryCode = '';
+            const regRes = await (window.apiFetch||fetch)('/api/auth/register', {
+              method: 'POST', headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({ username: ident, password: pwd, name: ident, email: ident.includes('@')?ident:'', country: countryCode })
+            });
+            if (regRes.ok) {
+              // retry login
+              const retry = await (window.apiFetch||fetch)('/api/auth/login', {
+                method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username: ident, password: pwd })
+              });
+              const data = await retry.json();
+              if (!retry.ok) throw new Error(data.error||'Login failed');
+              const { token, user } = data;
+              localStorage.setItem('preo_token', token);
+              localStorage.setItem('preo_user', JSON.stringify({ username: user.name || user.username, email: user.username, role: user.isAdmin ? 'admin' : 'trader' }));
+              window.location.href = user.isAdmin ? 'admin.html' : 'dashboard.html';
+              return;
+            }
+          } catch(e) {}
+        }
+        alert('❌ ' + (reason || 'Login failed'));
+      });
     });
 
     // Assist user in finding the correct identifier (username vs email)

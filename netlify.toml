@@ -47,6 +47,46 @@
   to = "/.netlify/functions/payhero-create-intent"
   status = 200
 
+[[redirects]]
+  from = "/api/admin/self-test"
+  to = "/.netlify/functions/admin-self-test"
+  status = 200
+
+[[redirects]]
+  from = "/api/health"
+  to = "/.netlify/functions/health"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/reset-users"
+  to = "/.netlify/functions/admin-reset-users"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/users"
+  to = "/.netlify/functions/admin-users"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/deposits/summary"
+  to = "/.netlify/functions/admin-deposits-summary"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/settings"
+  to = "/.netlify/functions/admin-settings"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/settings/marketer-demo-win-rate"
+  to = "/.netlify/functions/admin-settings-marketer-demo-win-rate"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/settings/marketer-real-win-rate"
+  to = "/.netlify/functions/admin-settings-marketer-real-win-rate"
+  status = 200
+
 # CORS headers for all functions
 [[headers]]
   for = "/.netlify/functions/*"
