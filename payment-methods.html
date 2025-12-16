@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Payment Methods — PreoCrypto</title>
+  <link rel="stylesheet" href="style.css">
+  <meta name="api-base" content="">
+</head>
+<body>
+  <!-- TOP NAVIGATION BAR -->
+  <header class="top-nav">
+    <div class="nav-left">
+      <button id="menuToggle" class="menu-toggle">☰</button>
+      <div class="logo" style="width: 32px; height: 32px; margin: 0 8px;">
+        <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="lg3" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#0055ff;stop-opacity:1" /><stop offset="100%" style="stop-color:#00d4ff;stop-opacity:1" /></linearGradient></defs><circle cx="100" cy="100" r="95" fill="none" stroke="url(#lg3)" stroke-width="2" opacity="0.3"/><path d="M 100 30 L 150 60 L 150 130 L 100 160 L 50 130 L 50 60 Z" fill="url(#lg3)" opacity="0.1"/><g><rect x="70" y="95" width="8" height="35" fill="#00d084" opacity="0.9"/><line x1="74" y1="85" x2="74" y2="135" stroke="#00d084" stroke-width="2"/><rect x="85" y="75" width="8" height="55" fill="#00d084" opacity="0.95"/><line x1="89" y1="65" x2="89" y2="135" stroke="#00d084" stroke-width="2"/><rect x="100" y="55" width="8" height="75" fill="#0055ff" opacity="1"/><line x1="104" y1="45" x2="104" y2="135" stroke="#0055ff" stroke-width="2"/><rect x="115" y="80" width="8" height="50" fill="#00d4ff" opacity="0.9"/><line x1="119" y1="70" x2="119" y2="135" stroke="#00d4ff" stroke-width="2"/></g></svg>
+      </div>
+      <h1>PreoCrypto</h1>
+    </div>
+    <div class="nav-center">
+      <span class="balance-display">Balance: <strong id="balance">$10,000.00</strong></span>
+    </div>
+    <div class="nav-right">
+      <button id="toggleMode" class="nav-btn">Theme</button>
+      <a href="index.html" class="nav-btn logout">Logout</a>
+    </div>
+  </header>
+
+  <!-- SIDE MENU -->
+  <nav id="sideMenu" class="side-menu">
+    <button class="menu-close">&times;</button>
+    <div class="menu-items">
+      <a href="dashboard.html" class="menu-item">Dashboard</a>
+      <a href="auto-trading.html" class="menu-item">Auto Trading</a>
+      <a href="finances.html" class="menu-item">💰 Finances</a>
+      <a href="transactions.html" class="menu-item">📋 Transactions</a>
+      <a href="payment-methods.html" class="menu-item active">💳 Payment Methods</a>
+      <a href="profile.html" class="menu-item">👤 Profile</a>
+    </div>
+  </nav>
+
+  <main class="main-container page-container">
+    <!-- PAGE HEADER -->
+    <div class="page-header">
+      <h2>💳 Payment Methods</h2>
+      <p>Manage your deposit and withdrawal methods</p>
+    </div>
+
+    <!-- PAYMENT OPTIONS -->
+    <div class="payment-options">
+      <!-- Methods Grid -->
+      <section class="content-card" style="margin-bottom:16px;">
+        <h3 style="margin-bottom:12px;">Available Methods</h3>
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px;">
+          <button class="action-btn" onclick="selectPaymentMethod('mpesa')">📱 M-Pesa (PayHero)</button>
+          <button class="action-btn outline" onclick="selectPaymentMethod('bank')">🏦 Bank Transfer</button>
+          <button class="action-btn outline" onclick="selectPaymentMethod('usdt')">💠 USDT (BEP20)</button>
+          <button class="action-btn outline" onclick="selectPaymentMethod('bitcoin')">₿ Bitcoin</button>
+          <button class="action-btn outline" onclick="selectPaymentMethod('ethereum')">🧿 Ethereum (ERC20)</button>
+          <button class="action-btn outline" onclick="selectPaymentMethod('tron')">⚡ TRON (TRC20)</button>
+        </div>
+      </section>
+
+      <!-- Details Panel -->
+      <section id="paymentDetails" class="content-card payment-card" style="display:none;">
+        <h3 id="paymentDetailsTitle">Payment Method</h3>
+      
+      <!-- STK Push Modal for M-Pesa -->
+      <div id="stkPushModal" style="display:none; margin-top:20px; padding:20px; background:rgba(0,212,255,0.1); border:1px solid rgba(0,212,255,0.3); border-radius:12px;">
+        <div style="margin-bottom:20px;">
+          <h4 style="margin: 0 0 12px 0; color: var(--text-primary);">📱 STK Push - Enter Your Details</h4>
+          <p style="margin: 0; font-size:13px; color: var(--text-secondary);">A prompt will pop up on your phone to enter your M-Pesa PIN</p>
+        </div>
+        
+        <div style="display: grid; gap: 12px;">
+          <div>
+            <label style="display:block; font-size:12px; color:var(--text-tertiary); margin-bottom:6px; font-weight:600;">Phone Number</label>
+            <input type="tel" id="mpesaPhone" placeholder="+254712345678 or 0712345678" style="width:100%; padding:12px; border:1px solid var(--border-color); border-radius:8px; background:var(--bg-secondary); color:var(--text-primary); font-size:14px;">
+            <small style="color:var(--text-tertiary); display:block; margin-top:4px;">Format: +254712345678 or 0712345678</small>
+          </div>
+          
+          <div>
+            <label style="display:block; font-size:12px; color:var(--text-tertiary); margin-bottom:6px; font-weight:600;">Amount (USD)</label>
+            <input type="number" id="mpesaAmount" placeholder="100" min="10" step="0.01" style="width:100%; padding:12px; border:1px solid var(--border-color); border-radius:8px; background:var(--bg-secondary); color:var(--text-primary); font-size:14px;">
+            <small style="color:var(--text-tertiary); display:block; margin-top:4px;">Minimum: $10</small>
+          </div>
+          
+          <button id="sendStkBtn" class="action-btn" onclick="initiateStkPush()" style="margin-top:8px;">
+            <span style="display:inline-block; margin-right:8px;">📲</span> Send STK Push
+          </button>
+          
+          <!-- STK Response -->
+          <div id="stkResponse" style="display:none; margin-top:16px; padding:14px; background:rgba(0,208,132,0.1); border:1px solid rgba(0,208,132,0.3); border-radius:8px; text-align:center;">
+            <div style="font-size:32px; margin-bottom:8px;">📤</div>
+            <p style="margin:0; font-weight:600; color:var(--success);">STK Push Sent!</p>
+            <p style="margin:8px 0 0 0; font-size:13px; color:var(--text-secondary);">Check your phone and enter your M-Pesa PIN</p>
+            <div id="stkPhoneDisplay" style="margin-top:12px; font-size:12px; color:var(--text-tertiary); background:var(--bg-tertiary); padding:10px; border-radius:6px; font-family:monospace;"></div>
+            <button id="cancelStkBtn" class="action-btn outline" onclick="resetStkPush()" style="margin-top:12px; font-size:13px;">Clear</button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Regular Payment Info -->
+      <div id="paymentInfo" style="margin-top:15px; line-height:1.8;"></div>
+      <div id="copyToast" style="display:none; position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--bg-secondary); color:var(--text-primary); border:1px solid var(--border-color); padding:10px 14px; border-radius:8px; box-shadow:0 6px 18px rgba(0,0,0,0.2); z-index:1000;">Copied to clipboard</div>
+      <div style="text-align:center; margin-top:20px;">
+        <p style="font-size:12px; color:#888;">Copy and send payment to complete your transaction</p>
+      </div>
+    </div>
+  </main>
+
+  <script src="storage.js"></script>
+  <script>
+    (function(){
+      try{
+        const winBase = window.API_BASE || window.__API_BASE || (window.env && window.env.API_BASE);
+        if (winBase && /^https?:\/\//i.test(winBase)) { window.API_BASE = String(winBase).replace(/\/$/, ''); return; }
+        const meta = document.querySelector('meta[name="api-base"]');
+        if (meta && /^https?:\/\//i.test(meta.content)) { window.API_BASE = meta.content.replace(/\/$/, ''); return; }
+        const override = localStorage.getItem('api_base');
+        if (override && /^https?:\/\//i.test(override)) { window.API_BASE = override.replace(/\/$/, ''); return; }
+        const { protocol, hostname, port } = window.location;
+        if (String(port) === '3000') { window.API_BASE = ''; return; }
+        if (hostname) { window.API_BASE = `${protocol}//${hostname}:3000`; return; }
+        window.API_BASE = 'http://localhost:3000';
+      }catch{ window.API_BASE = 'http://localhost:3000'; }
+    })();
+  </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="payments-app.js"></script>
+</body>
+</html>
