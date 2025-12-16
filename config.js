@@ -82,9 +82,13 @@
     let base = (isVercel || isNetlify || (!isLocalhost && !samePort)) ? '' : (samePort ? '' : (configured || savedBase || defaultBase));
 
     // If using Live Server (port 5500) with no backend, fall back to remote API origin if provided
-    if (isLocalhost && location.port === '5500') {
-      const remote = (window.appConfig && (window.appConfig.apiOrigin || window.appConfig.baseUrl)) || '';
-      if (remote) base = remote;
+    const remoteOrigin = (window.appConfig && (window.appConfig.apiOrigin || window.appConfig.baseUrl)) || '';
+    // Any localhost (including 5500) should prefer remote API to avoid missing local server
+    if (isLocalhost) {
+      if (remoteOrigin) {
+        base = remoteOrigin;
+        try { localStorage.setItem('preo_api_base', remoteOrigin); } catch (_) {}
+      }
     }
 
     window.API_BASE = base; // '' => same-origin
@@ -93,13 +97,13 @@
       const absolute = (path.startsWith('http://') || path.startsWith('https://'));
       const makeUrl = (b) => absolute ? path : (b || '') + path;
       let tryBases = [];
-      // Primary base first
-      tryBases.push(window.API_BASE || '');
-      // If primary is localhost:5000 and fails, try remote apiOrigin
       const remote = (window.appConfig && (window.appConfig.apiOrigin || window.appConfig.baseUrl)) || '';
-      if (!tryBases.includes(remote)) tryBases.push(remote);
-      // Also try raw path as final fallback
-      if (!tryBases.includes('')) tryBases.push('');
+      // Prefer remote first when available (helps Live Server on localhost)
+      if (remote) tryBases.push(remote);
+      // Then current configured base
+      tryBases.push(window.API_BASE || '');
+      // Finally, raw path as fallback
+      tryBases.push('');
 
       let lastErr = null;
       for (const b of tryBases) {

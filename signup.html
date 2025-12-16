@@ -496,16 +496,18 @@
             return false;
           }
           const users = JSON.parse(localStorage.getItem('users') || '[]');
-          // case-insensitive comparison to reduce accidental collisions
-          if (users.find(u => u.email && u.email.toLowerCase() === email.toLowerCase())) {
-            showError(step, 'Email already registered');
-            if (debug) debug.textContent = 'Validation failed: email already registered';
-            return false;
+          // If email/username found locally, inform but allow upsert to proceed
+          const emailExists = users.find(u => u.email && u.email.toLowerCase() === email.toLowerCase());
+          const usernameExists = users.find(u => u.username && u.username.toLowerCase() === username.toLowerCase());
+          if (emailExists) {
+            const warn = document.getElementById(`error${step}`);
+            if (warn) { warn.textContent = 'Email already registered — we will update your account'; warn.style.display = 'block'; }
+            if (debug) debug.textContent = 'Notice: email already registered, proceeding with update';
           }
-          if (users.find(u => u.username && u.username.toLowerCase() === username.toLowerCase())) {
-            showError(step, 'Username taken');
-            if (debug) debug.textContent = 'Validation failed: username taken';
-            return false;
+          if (usernameExists) {
+            const warn = document.getElementById(`error${step}`);
+            if (warn) { warn.textContent = 'Username already in use — we will update your account'; warn.style.display = 'block'; }
+            if (debug) debug.textContent = 'Notice: username already in use, proceeding with update';
           }
         }
 

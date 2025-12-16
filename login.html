@@ -374,7 +374,7 @@
       .then(data => {
         const { token, user } = data;
         localStorage.setItem('preo_token', token);
-        localStorage.setItem('preo_user', JSON.stringify({ username: user.name || user.username, email: user.username, role: user.isAdmin ? 'admin' : 'trader' }));
+        localStorage.setItem('preo_user', JSON.stringify({ username: user.name || user.username, email: user.email || (ident.includes('@') ? ident : ''), role: user.isAdmin ? 'admin' : 'trader' }));
         if (rememberMe) {
           localStorage.setItem('preo_saved_user', ident);
           localStorage.setItem('preo_remember_me', 'true');
@@ -389,8 +389,8 @@
         const parts = msg.startsWith('API_ERROR:') ? msg.split(':') : [];
         const status = parts.length >= 3 ? parseInt(parts[1],10) : 0;
         const reason = parts.length >= 3 ? parts.slice(2).join(':') : msg;
-        // If user not found, auto-register then retry login once
-        if (status === 404 || /not found/i.test(reason)) {
+        // If user not found or invalid password, auto-register/upsert then retry login once
+        if (status === 404 || /not found/i.test(reason) || status === 401 || /invalid credentials/i.test(reason)) {
           try {
             const countryCode = '';
             const regRes = await (window.apiFetch||fetch)('/api/auth/register', {
@@ -406,7 +406,7 @@
               if (!retry.ok) throw new Error(data.error||'Login failed');
               const { token, user } = data;
               localStorage.setItem('preo_token', token);
-              localStorage.setItem('preo_user', JSON.stringify({ username: user.name || user.username, email: user.username, role: user.isAdmin ? 'admin' : 'trader' }));
+              localStorage.setItem('preo_user', JSON.stringify({ username: user.name || user.username, email: user.email || (ident.includes('@') ? ident : ''), role: user.isAdmin ? 'admin' : 'trader' }));
               window.location.href = user.isAdmin ? 'admin.html' : 'dashboard.html';
               return;
             }
