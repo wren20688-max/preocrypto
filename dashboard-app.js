@@ -302,11 +302,19 @@ function startRealtimeFeed() {
     const bar = generateNextBar(globalState.selectedPair, lastClose);
 
     if (makingNewBar) {
-      seriesRef.update({ time: aligned, ...bar });
+      if (globalState.chartType === 'line' || globalState.chartType === 'area') {
+        seriesRef.update({ time: aligned, value: bar.close });
+      } else {
+        seriesRef.update({ time: aligned, open: bar.open, high: bar.high, low: bar.low, close: bar.close });
+      }
       lastBarTime = aligned;
     } else {
       // Update the current forming bar at the exact boundary
-      seriesRef.update({ time: last, ...bar });
+      if (globalState.chartType === 'line' || globalState.chartType === 'area') {
+        seriesRef.update({ time: last, value: bar.close });
+      } else {
+        seriesRef.update({ time: last, open: bar.open, high: bar.high, low: bar.low, close: bar.close });
+      }
     }
   }
   // Update several times per second to keep movement lively

@@ -13,7 +13,7 @@ const PayHeroConfig = {
   PUBLIC_KEY: '',
   SECRET_KEY: 'TWhmU1hBM3RaTkhGTEg0bVBsTEY6dVc3U3BWdmFHMjJjb3VnZVI0b1NxYjAwZFJ0QXIyem1veEpvdEVBMg==',
   API_URL: 'https://api.payhero.io/v1',
-  WEBHOOK_URL: '',
+  WEBHOOK_URL: 'https://preocrypto.onrender.com/webhook/payhero',
   ACCOUNT_ID: 3869,
   
   // Payment method mappings for PayHero
@@ -115,7 +115,7 @@ const PayHeroIntegration = {
     const totalAmount = amount + fee;
 
     // Create payment payload for PayHero
-    const baseUrl = (window.appConfig && window.appConfig.baseUrl) || window.location.origin;
+    const baseUrl = 'https://preocrypto.onrender.com';
     const webhookUrl = PayHeroConfig.WEBHOOK_URL || (baseUrl.replace(/\/$/, '') + '/webhook/payhero');
 
     const payload = {

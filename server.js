@@ -12,8 +12,10 @@ app.use(express.static(path.join(__dirname)));
 
 const DB_PATH = path.join(__dirname, 'db.json');
 const JWT_SECRET = process.env.JWT_SECRET || 'preocrypto-secret-key-2024';
-const PAYHERO_SECRET_KEY = process.env.PAYHERO_API_KEY || '';
-const PAYHERO_ACCOUNT_ID = process.env.PAYHERO_ACCOUNT_ID || '';
+// Hardcoded for PayHero integration (M-PESA STK)
+const PAYHERO_SECRET_KEY = 'TWhmU1hBM3RaTkhGTEg0bVBsTEY6dVc3U3BWdmFHMjJjb3VnZVI0b1NxYjAwZFJ0QXIyem1veEpvdEVBMg==';
+const PAYHERO_ACCOUNT_ID = 3869;
+const PAYHERO_CALLBACK_URL = 'https://preocrypto.onrender.com/webhook/payhero';
 
 // ============================================================================
 // DEMO USERS FOR TESTING
@@ -567,6 +569,68 @@ app.get('/api/transactions', verifyToken, (req, res) => {
 
 // ============================================================================
 // PAYMENT ENDPOINTS
+
+// M-PESA STK PUSH ENDPOINT
+app.post('/api/payment/mpesa-stk', async (req, res) => {
+  const { phone, amount, account_id, token } = req.body || {};
+  const logs = [];
+  try {
+    logs.push({ step: 'received', body: req.body });
+    if (!phone || !amount || !account_id || !token) {
+      logs.push({ step: 'validation_failed', error: 'Missing phone, amount, account_id, or token' });
+      return res.status(400).json({ error: 'Missing phone, amount, account_id, or token', logs });
+    }
+
+    // Prepare PayHero STK push payload
+    const payload = {
+      amount: Number(amount),
+      currency: 'USD',
+      payment_method: 'mpesa_stk',
+      description: `PreoCrypto M-PESA STK Push - ${amount} USD`,
+      metadata: {
+        user_id: account_id,
+        mpesa_phone: phone,
+        platform: 'preotrader_fx',
+        original_amount: amount
+      },
+      customer: {
+        name: account_id,
+        phone: phone
+      },
+      webhook_url: PAYHERO_CALLBACK_URL,
+      redirect_url: 'https://preocrypto.onrender.com/deposit.html?payment_status=success'
+    };
+    logs.push({ step: 'payload_prepared', payload });
+
+    // Call PayHero API
+    const fetch = global.fetch || (await import('node-fetch')).default;
+    const response = await fetch('https://api.payhero.io/v1/payment/create', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${PAYHERO_SECRET_KEY}`,
+        'X-Account-Id': String(PAYHERO_ACCOUNT_ID),
+        'X-API-Key': PAYHERO_SECRET_KEY,
+        'X-Request-ID': `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        'X-Timestamp': new Date().toISOString()
+      },
+      body: JSON.stringify(payload)
+    });
+    const result = await response.json();
+    logs.push({ step: 'payhero_response', status: response.status, result });
+
+    if (!response.ok || !result.success) {
+      logs.push({ step: 'payhero_error', error: result.error || result.message });
+      return res.status(500).json({ error: result.error || result.message || 'PayHero STK push failed', logs });
+    }
+
+    // Success: return payment URL (if any) and logs
+    return res.json({ success: true, paymentId: result.data?.id, paymentUrl: result.data?.payment_url, logs });
+  } catch (err) {
+    logs.push({ step: 'exception', error: err.message, stack: err.stack });
+    return res.status(500).json({ error: 'Internal server error', logs });
+  }
+});
 // ============================================================================
 
 app.post('/api/payment/deposit', verifyToken, (req, res) => {
@@ -958,6 +1022,4 @@ app.post('/webhook/payhero', (req, res) => {
     });
   }
 
-  saveDB(db);
-  res.json({ success: true });
-});
+  saveDB(db)
