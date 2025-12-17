@@ -93,6 +93,27 @@
 
     window.API_BASE = base; // '' => same-origin
 
+    // Known Netlify function path fallbacks for when redirects fail (405/404)
+    const NETLIFY_MAP = {
+      '/api/auth/register': '/.netlify/functions/auth-register',
+      '/api/auth/login': '/.netlify/functions/auth-login',
+      '/api/auth/identify': '/.netlify/functions/auth-identify',
+      '/api/user/profile': '/.netlify/functions/user-profile',
+      '/api/transactions': '/.netlify/functions/transactions',
+      '/api/payment/deposit': '/.netlify/functions/payment-deposit',
+      '/api/payment/withdrawal': '/.netlify/functions/payment-withdrawal',
+      '/api/payment/intent': '/.netlify/functions/payhero-create-intent',
+      '/webhook/payhero': '/.netlify/functions/webhook-payhero',
+      '/api/admin/self-test': '/.netlify/functions/admin-self-test',
+      '/api/health': '/.netlify/functions/health',
+      '/api/admin/reset-users': '/.netlify/functions/admin-reset-users',
+      '/api/admin/users': '/.netlify/functions/admin-users',
+      '/api/admin/deposits/summary': '/.netlify/functions/admin-deposits-summary',
+      '/api/admin/settings': '/.netlify/functions/admin-settings',
+      '/api/admin/settings/marketer-demo-win-rate': '/.netlify/functions/admin-settings-marketer-demo-win-rate',
+      '/api/admin/settings/marketer-real-win-rate': '/.netlify/functions/admin-settings-marketer-real-win-rate'
+    };
+
     window.apiFetch = async function(path, options) {
       const absolute = (path.startsWith('http://') || path.startsWith('https://'));
       const makeUrl = (b) => absolute ? path : (b || '') + path;
@@ -111,9 +132,27 @@
         try {
           const res = await fetch(url, options);
           // Save working base for later
-          if (b && res && typeof res.status === 'number') {
+          if (b && res && typeof res.status === 'number' && res.ok) {
             window.API_BASE = b;
             localStorage.setItem('preo_api_base', b);
+          }
+          // If redirects fail (Netlify returning 404/405), retry with direct functions path if known
+          if (!res.ok && (res.status === 405 || res.status === 404) && !absolute) {
+            const mapped = NETLIFY_MAP[path];
+            if (mapped) {
+              const altUrl = (b || '') + mapped;
+              try {
+                const altRes = await fetch(altUrl, options);
+                if (b && altRes && altRes.ok) {
+                  window.API_BASE = b;
+                  localStorage.setItem('preo_api_base', b);
+                }
+                return altRes;
+              } catch (altErr) {
+                lastErr = altErr;
+                // continue to next base
+              }
+            }
           }
           return res;
         } catch (e) {

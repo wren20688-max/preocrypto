@@ -65,6 +65,21 @@
       <div id="emptyState" style="text-align:center; color:#a0a0a0; padding:20px; display:none;">No users match filters</div>
     </div>
 
+    <!-- Active Marketers -->
+    <div class="card">
+      <h3 style="color:#00d4ff;">Active Marketers</h3>
+      <div style="color:#a0a0a0; margin-bottom:8px;">Live list of users with role "marketer"</div>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Email</th><th>Username</th><th>Role</th><th>Demo Balance</th><th>Real Balance</th><th>Created</th><th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="marketersTable"></tbody>
+      </table>
+      <div id="mkEmptyState" style="text-align:center; color:#a0a0a0; padding:20px; display:none;">No marketers yet</div>
+    </div>
+
     <!-- Edit Balances Section -->
     <div class="card">
       <h3 style="color:#00d4ff;">Edit User Balances</h3>
@@ -148,8 +163,8 @@
     const API = '/api';
     // Global helpers moved out for proper scope
     async function updateBalance(userId, type, balance){
-      const res = await fetch(`${API}/admin/users`, {
-        method:'POST',
+      const res = await (window.apiFetch || fetch)(`${API}/admin/users`, {
+        method: 'POST',
         headers:{ 'Content-Type':'application/json' },
         credentials:'include',
         body: JSON.stringify({ action:'set-balance', id: userId, account: type, balance: Number(balance) })
@@ -176,7 +191,7 @@
     }
     async function fetchUsers() {
       try {
-        const res = await fetch(`${API}/admin/users`, { credentials:'include' });
+          const res = await (window.apiFetch || fetch)(`${API}/admin/users`, { credentials: 'include' });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         const apiUsers = data.users || [];
@@ -203,7 +218,7 @@
     // win rate save removed in compact view
     async function updateRole(id, role) {
       try {
-        const res = await fetch(`${API}/admin/users`, {
+        const res = await (window.apiFetch || fetch)(`${API}/admin/users`, {
           method:'POST',
           headers:{ 'Content-Type':'application/json' },
           credentials:'include',
@@ -246,6 +261,32 @@
               : `<button class="btn primary" onclick="onRole('${u.id}','marketer')">Set Marketer</button>`}
             <button class="btn" onclick="initAccounts('${u.id}')" style="margin-left:8px;">Init Accounts</button>
               <button class="btn" onclick="promptBalance('${u.id}')" style="margin-left:8px;">Edit Balance</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function renderMarketersList(users) {
+      const q = document.getElementById('search').value.toLowerCase();
+      const filtered = users.filter(u =>
+        (!q || (u.email?.toLowerCase().includes(q) || u.username?.toLowerCase().includes(q))) &&
+        (u.role === 'marketer')
+      );
+      const tbody = document.getElementById('marketersTable');
+      const empty = document.getElementById('mkEmptyState');
+      empty.style.display = filtered.length ? 'none' : 'block';
+      tbody.innerHTML = filtered.map(u => `
+        <tr>
+          <td>${u.email}</td>
+          <td>${u.username}</td>
+          <td><span class="badge ${u.role}">${u.role}</span></td>
+          <td style="text-align:right">$${(u.balances?.demo||0).toFixed(2)}</td>
+          <td style="text-align:right">$${(u.balances?.real||0).toFixed(2)}</td>
+          <td>${new Date(u.created_at).toLocaleString()}</td>
+          <td>
+            <button class="btn" onclick="onRole('${u.id}','normal')">Set Normal</button>
+            <button class="btn" onclick="initAccounts('${u.id}')" style="margin-left:8px;">Init Accounts</button>
+            <button class="btn" onclick="promptBalance('${u.id}')" style="margin-left:8px;">Edit Balance</button>
           </td>
         </tr>
       `).join('');
@@ -315,10 +356,11 @@
     async function refresh() {
       const [users, deposits] = await Promise.all([
         fetchUsers(),
-        fetch(`${API}/admin/deposits/summary`, { credentials:'include' }).then(r=>r.ok?r.json():{ summary:[]})
+        (window.apiFetch || fetch)(`${API}/admin/deposits/summary`, { credentials: 'include' }).then(r => r.ok ? r.json() : { summary: [] })
       ]);
       const depositSummary = deposits.summary || [];
       renderUsers(users);
+      renderMarketersList(users);
       renderBalanceEditor(users);
       // Render deposits summary (USD and KES view)
       const depCard = document.getElementById('depositSummaryCard');
@@ -372,7 +414,7 @@
 
     async function initAccounts(userId){
       try{
-        const res = await fetch(`${API}/admin/users`, { method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'init-accounts', id: userId }) });
+        const res = await (window.apiFetch || fetch)(`${API}/admin/users`, { method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'init-accounts', id: userId }) });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         alert('Accounts initialized');

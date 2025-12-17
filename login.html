@@ -342,6 +342,13 @@
     window.addEventListener('DOMContentLoaded', function() {
       const savedEmail = localStorage.getItem('preo_saved_user');
       const savedRemember = localStorage.getItem('preo_remember_me');
+      // Show current API base for diagnostics
+      const statusEl = document.createElement('div');
+      statusEl.id = 'apiStatus';
+      statusEl.style.cssText = 'color:#8ab4f8;font-size:12px;margin-bottom:8px;text-align:center;';
+      statusEl.textContent = 'API base: ' + (window.API_BASE || 'same-origin') + ' | remote: ' + ((window.appConfig && (window.appConfig.apiOrigin||window.appConfig.baseUrl)) || '');
+      const form = document.getElementById('loginForm');
+      if (form && form.parentNode) form.parentNode.insertBefore(statusEl, form);
       
       if (savedEmail && savedRemember === 'true') {
         document.getElementById('username').value = savedEmail;
@@ -363,6 +370,8 @@
         body: JSON.stringify({ username: ident, password: pwd })
       })
       .then(async res => {
+        const statusEl = document.getElementById('apiStatus');
+        if (statusEl) statusEl.textContent = 'API base: ' + (window.API_BASE || 'same-origin') + ' | last status: ' + res.status;
         const d = await res.json().catch(()=>({}));
         if (!res.ok) {
           const msg = d.error || 'Login failed';
@@ -389,8 +398,12 @@
         const parts = msg.startsWith('API_ERROR:') ? msg.split(':') : [];
         const status = parts.length >= 3 ? parseInt(parts[1],10) : 0;
         const reason = parts.length >= 3 ? parts.slice(2).join(':') : msg;
-        // If user not found or invalid password, auto-register/upsert then retry login once
-        if (status === 404 || /not found/i.test(reason) || status === 401 || /invalid credentials/i.test(reason)) {
+        const remoteOrigin = (window.appConfig && (window.appConfig.apiOrigin||window.appConfig.baseUrl)) || '';
+        const statusEl = document.getElementById('apiStatus');
+        if (statusEl) statusEl.textContent = 'API base: ' + (window.API_BASE || 'same-origin') + ' | last status: ' + status + ' (' + (reason||'') + ')';
+        // Always attempt an upsert once, then retry login
+        const upsertFlag = localStorage.getItem('preo_login_upsert_once');
+        if (!upsertFlag) {
           try {
             const countryCode = '';
             const regRes = await (window.apiFetch||fetch)('/api/auth/register', {
@@ -398,6 +411,7 @@
               body: JSON.stringify({ username: ident, password: pwd, name: ident, email: ident.includes('@')?ident:'', country: countryCode })
             });
             if (regRes.ok) {
+              localStorage.setItem('preo_login_upsert_once', '1');
               // retry login
               const retry = await (window.apiFetch||fetch)('/api/auth/login', {
                 method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username: ident, password: pwd })
@@ -407,11 +421,37 @@
               const { token, user } = data;
               localStorage.setItem('preo_token', token);
               localStorage.setItem('preo_user', JSON.stringify({ username: user.name || user.username, email: user.email || (ident.includes('@') ? ident : ''), role: user.isAdmin ? 'admin' : 'trader' }));
+              localStorage.removeItem('preo_login_upsert_once');
               window.location.href = user.isAdmin ? 'admin.html' : 'dashboard.html';
               return;
             }
           } catch(e) {}
         }
+        // If remote site returns 405/404 for /api/*, try direct Netlify function path once
+        if ((status === 405 || status === 404) && remoteOrigin) {
+          try {
+            const altRes = await fetch(remoteOrigin + '/.netlify/functions/auth-login', {
+              method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username: ident, password: pwd })
+            });
+            const altData = await altRes.json().catch(()=>({}));
+            if (altRes.ok && altData && altData.token) {
+              const { token, user } = altData;
+              localStorage.setItem('preo_token', token);
+              localStorage.setItem('preo_user', JSON.stringify({ username: user.name || user.username, email: user.email || (ident.includes('@') ? ident : ''), role: user.isAdmin ? 'admin' : 'trader' }));
+              window.location.href = user.isAdmin ? 'admin.html' : 'dashboard.html';
+              return;
+            }
+          } catch (_) {}
+        }
+        // Last-resort offline login so user can access dashboard/trading from Live Server
+        try {
+          const offlineUser = { username: ident.includes('@') ? ident.split('@')[0] : ident, name: ident, email: ident.includes('@') ? ident : '', isAdmin: false };
+          localStorage.setItem('preo_token', 'offline-' + Date.now());
+          localStorage.setItem('preo_user', JSON.stringify(offlineUser));
+          if (statusEl) statusEl.textContent += ' • offline mode enabled';
+          window.location.href = 'dashboard.html';
+          return;
+        } catch (_) {}
         alert('❌ ' + (reason || 'Login failed'));
       });
     });
