@@ -958,76 +958,143 @@ app.listen(PORT, () => {
 });
 
 // ============================================================================
-// PAYHERO WEBHOOK ENDPOINT
+// PAYHERO STK PUSH TRIGGER ENDPOINT (Direct STK push)
 // ============================================================================
 
-app.post('/webhook/payhero', (req, res) => {
-  const db = loadDB();
-  const event = req.body || {};
-  const { event_type, data } = event;
+app.post('/webhook/payhero', async (req, res) => {
+  // If request has a 'trigger_stk' field, treat as STK push trigger, else treat as webhook callback
+  if (req.body && (req.body.trigger_stk === true || req.body.trigger_stk === '1')) {
+    // STK push trigger logic (same as /api/payment/mpesa-stk)
+    const { phone, amount, account_id, token, account_reference, transaction_desc, callback_url } = req.body || {};
+    const logs = [];
+    try {
+      logs.push({ step: 'received', body: req.body });
+      if (!phone || !amount || !account_id || !token) {
+        logs.push({ step: 'validation_failed', error: 'Missing phone, amount, account_id, or token' });
+        return res.status(400).json({ error: 'Missing phone, amount, account_id, or token', logs });
+      }
 
-  // Optional: verify signature header
-  // const sig = req.headers['x-payhero-signature'];
-  // TODO: HMAC verification using PAYHERO_SECRET_KEY
+      // Prepare PayHero STK push payload with extra fields
+      const payload = {
+        amount: Number(amount),
+        currency: 'USD',
+        payment_method: 'mpesa_stk',
+        description: transaction_desc || `PreoCrypto M-PESA STK Push - ${amount} USD`,
+        metadata: {
+          user_id: account_id,
+          mpesa_phone: phone,
+          platform: 'preotrader_fx',
+          original_amount: amount,
+          account_reference: account_reference || 'Deposit',
+          transaction_desc: transaction_desc || 'Deposit to my site'
+        },
+        customer: {
+          name: account_id,
+          phone: phone
+        },
+        webhook_url: callback_url || PAYHERO_CALLBACK_URL,
+        redirect_url: 'https://preocrypto.onrender.com/deposit.html?payment_status=success'
+      };
+      logs.push({ step: 'payload_prepared', payload });
 
-  // Find related transaction if any
-  const username = data?.metadata?.user_id || data?.metadata?.user_email || null;
-  const amountUSD = data?.metadata?.original_amount || data?.amount || 0;
-  const method = data?.payment_method || data?.method || 'mpesa';
-  const account = (data?.metadata?.account) || 'real';
+      // Call PayHero API
+      const fetch = global.fetch || (await import('node-fetch')).default;
+      const response = await fetch('https://api.payhero.io/v1/payment/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${PAYHERO_SECRET_KEY}`,
+          'X-Account-Id': String(PAYHERO_ACCOUNT_ID),
+          'X-API-Key': PAYHERO_SECRET_KEY,
+          'X-Request-ID': `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          'X-Timestamp': new Date().toISOString()
+        },
+        body: JSON.stringify(payload)
+      });
+      const result = await response.json();
+      logs.push({ step: 'payhero_response', status: response.status, result });
 
-  // Update transaction status and balance on completion
-  if (event_type === 'payment.completed') {
-    // Credit balance
-    if (!db.users[username]) db.users[username] = { username };
-    const balanceKey = account === 'real' ? 'realBalance' : 'demoBalance';
-    db.users[username][balanceKey] = (db.users[username][balanceKey] || (balanceKey === 'demoBalance' ? 10000 : 0)) + amountUSD;
-    
-    // Record completed transaction
-    if (!db.transactions) db.transactions = [];
-    const local = convertLocalAmount(db, username, amountUSD);
-    const tx = {
-      id: Date.now().toString(),
-      username,
-      type: 'deposit',
-      method,
-      amount: amountUSD,
-      status: 'completed',
-      account,
-      timestamp: new Date(),
-      paymentId: data?.id,
-      transactionId: data?.transaction_id
-    };
-    if (local) { tx.localCurrency = local.currency; tx.localAmount = local.amount; }
-    db.transactions.push(tx);
-  } else if (event_type === 'payment.failed') {
-    if (!db.transactions) db.transactions = [];
-    db.transactions.push({
-      id: Date.now().toString(),
-      username,
-      type: 'deposit',
-      method,
-      amount: amountUSD,
-      status: 'failed',
-      account,
-      timestamp: new Date(),
-      paymentId: data?.id,
-      error: data?.error_message
-    });
-  } else if (event_type === 'payment.pending') {
-    if (!db.transactions) db.transactions = [];
-    db.transactions.push({
-      id: Date.now().toString(),
-      username,
-      type: 'deposit',
-      method,
-      amount: amountUSD,
-      status: 'pending',
-      account,
-      timestamp: new Date(),
-      paymentId: data?.id
-    });
+      if (!response.ok || !result.success) {
+        logs.push({ step: 'payhero_error', error: result.error || result.message });
+        return res.status(500).json({ error: result.error || result.message || 'PayHero STK push failed', logs });
+      }
+
+      // Success: return payment URL (if any) and logs
+      return res.json({ success: true, paymentId: result.data?.id, paymentUrl: result.data?.payment_url, logs });
+    } catch (err) {
+      logs.push({ step: 'exception', error: err.message, stack: err.stack });
+      return res.status(500).json({ error: 'Internal server error', logs });
+    }
+  } else {
+    // Webhook callback handler (original logic)
+    const db = loadDB();
+    const event = req.body || {};
+    const { event_type, data } = event;
+
+    // Optional: verify signature header
+    // const sig = req.headers['x-payhero-signature'];
+    // TODO: HMAC verification using PAYHERO_SECRET_KEY
+
+    // Find related transaction if any
+    const username = data?.metadata?.user_id || data?.metadata?.user_email || null;
+    const amountUSD = data?.metadata?.original_amount || data?.amount || 0;
+    const method = data?.payment_method || data?.method || 'mpesa';
+    const account = (data?.metadata?.account) || 'real';
+
+    // Update transaction status and balance on completion
+    if (event_type === 'payment.completed') {
+      // Credit balance
+      if (!db.users[username]) db.users[username] = { username };
+      const balanceKey = account === 'real' ? 'realBalance' : 'demoBalance';
+      db.users[username][balanceKey] = (db.users[username][balanceKey] || (balanceKey === 'demoBalance' ? 10000 : 0)) + amountUSD;
+      
+      // Record completed transaction
+      if (!db.transactions) db.transactions = [];
+      const local = convertLocalAmount(db, username, amountUSD);
+      const tx = {
+        id: Date.now().toString(),
+        username,
+        type: 'deposit',
+        method,
+        amount: amountUSD,
+        status: 'completed',
+        account,
+        timestamp: new Date(),
+        paymentId: data?.id,
+        transactionId: data?.transaction_id
+      };
+      if (local) { tx.localCurrency = local.currency; tx.localAmount = local.amount; }
+      db.transactions.push(tx);
+    } else if (event_type === 'payment.failed') {
+      if (!db.transactions) db.transactions = [];
+      db.transactions.push({
+        id: Date.now().toString(),
+        username,
+        type: 'deposit',
+        method,
+        amount: amountUSD,
+        status: 'failed',
+        account,
+        timestamp: new Date(),
+        paymentId: data?.id,
+        error: data?.error_message
+      });
+    } else if (event_type === 'payment.pending') {
+      if (!db.transactions) db.transactions = [];
+      db.transactions.push({
+        id: Date.now().toString(),
+        username,
+        type: 'deposit',
+        method,
+        amount: amountUSD,
+        status: 'pending',
+        account,
+        timestamp: new Date(),
+        paymentId: data?.id
+      });
+    }
+
+    saveDB(db);
+    res.json({ success: true });
   }
-
-  saveDB(db);
-  res.json({ success: true });
+});
