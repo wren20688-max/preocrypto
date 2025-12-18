@@ -1,3 +1,5 @@
+
+// Import express and required modules
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
@@ -6,6 +8,9 @@ const path = require('path');
 const jwt = require('jsonwebtoken');
 
 const app = express();
+// Enable JSON and URL-encoded body parsing for all requests
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname)));
@@ -572,7 +577,7 @@ app.get('/api/transactions', verifyToken, (req, res) => {
 
 // M-PESA STK PUSH ENDPOINT
 app.post('/api/payment/mpesa-stk', async (req, res) => {
-  const { phone, amount, account_id, token } = req.body || {};
+  const { phone, amount, account_id, token, account_reference, transaction_desc, callback_url } = req.body || {};
   const logs = [];
   try {
     logs.push({ step: 'received', body: req.body });
@@ -581,23 +586,25 @@ app.post('/api/payment/mpesa-stk', async (req, res) => {
       return res.status(400).json({ error: 'Missing phone, amount, account_id, or token', logs });
     }
 
-    // Prepare PayHero STK push payload
+    // Prepare PayHero STK push payload with extra fields
     const payload = {
       amount: Number(amount),
       currency: 'USD',
       payment_method: 'mpesa_stk',
-      description: `PreoCrypto M-PESA STK Push - ${amount} USD`,
+      description: transaction_desc || `PreoCrypto M-PESA STK Push - ${amount} USD`,
       metadata: {
         user_id: account_id,
         mpesa_phone: phone,
         platform: 'preotrader_fx',
-        original_amount: amount
+        original_amount: amount,
+        account_reference: account_reference || 'Deposit',
+        transaction_desc: transaction_desc || 'Deposit to my site'
       },
       customer: {
         name: account_id,
         phone: phone
       },
-      webhook_url: PAYHERO_CALLBACK_URL,
+      webhook_url: callback_url || PAYHERO_CALLBACK_URL,
       redirect_url: 'https://preocrypto.onrender.com/deposit.html?payment_status=success'
     };
     logs.push({ step: 'payload_prepared', payload });
@@ -1022,4 +1029,5 @@ app.post('/webhook/payhero', (req, res) => {
     });
   }
 
-  saveDB(db)
+  saveDB(db);
+  res.json({ success: true });

@@ -1,11 +1,9 @@
 #!/usr/bin/env pwsh
 
 # E2E Test Script for PreoCrypto
-$API_URL = "http://localhost:3000"
+$API_URL = "http://localhost:5000"
 $DEMO_EMAIL = "test_e2e_$(Get-Date -Format 'yyyyMMddHHmmss')@preofx.local"
 $DEMO_PASSWORD = "demo12345"
-$ADMIN_EMAIL = "admin@preofx.local"
-$ADMIN_PASSWORD = "admin12345"
 
 Write-Host "========== PreoCrypto E2E Test ==========" -ForegroundColor Cyan
 
@@ -135,3 +133,16 @@ if ($botResp.bot) {
 
 Write-Host "`n========== E2E Test Complete ==========" -ForegroundColor Cyan
 Write-Host "✅ All tests passed!" -ForegroundColor Green
+// ================= PAYHERO WEBHOOK =================
+app.post("/api/payhero/callback", (req, res) => {
+  console.log("PayHero webhook received:", req.body);
+
+  /*
+    Here later you will:
+    - verify transaction
+    - save to DB
+    - update user balance
+  */
+
+  res.status(200).json({ success: true });
+});
