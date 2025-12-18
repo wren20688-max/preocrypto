@@ -221,20 +221,10 @@
       
       console.log('STK Push initiated for:', phone, 'Amount:', amount);
       
-      // Request notification permission first
-      if ('Notification' in phone && Notification.permission === 'default') {
-        Notification.requestPermission().then(permission => {
-          if (permission === 'granted') {
-            sendBrowserNotification('STK Push Sent', 'Check your phone for M-Pesa payment prompt');
-          }
-          proceedWithStkPush(phone, amount);
-        });
-      } else if ('Notification' in phone && Notification.permission === 'granted') {
-        sendBrowserNotification('STK Push Sent', 'Check your phone for M-Pesa payment prompt');
-        proceedWithStkPush(phone, amount);
-      } else {
-        proceedWithStkPush(phone, amount);
-      }
+      // Only send STK push to the entered phone number, no browser or OS notification
+      console.log("STK Push initiated for:", phone, "Amount:", amount);
+      alert("Check your phone and enter M-PESA PIN");
+      proceedWithStkPush(phone, amount);
     }
 
     async function proceedWithStkPush(phone, amount) {
