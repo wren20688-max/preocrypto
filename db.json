@@ -1,65 +1,10 @@
 {
-  "users": {
-    "Joel": {
-      "username": "Joel",
-      "password": "Jos134ka2",
-      "name": "Joel",
-      "email": "josphatndungu102@gmail.com",
-      "demoBalance": 10000,
-      "realBalance": 0,
-      "createdAt": "2025-12-16T15:11:37.368Z",
-      "isAdmin": false
-    },
-    "josphatndungu102@gmail.com": {
-      "realBalance": 10210
-    }
-  },
-  "tokens": [
-    {
-      "username": "josphatndungu102@gmail.com",
-      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6Impvc3BoYXRuZHVuZ3UxMDJAZ21haWwuY29tIiwiaXNBZG1pbiI6ZmFsc2UsImlhdCI6MTc2NTg5NzkyOSwiZXhwIjoxNzY1OTg0MzI5fQ.p4H9-dFSjMOEZ6qjW2Z5xt3EWcK27MA-vI1R4nJpH0g",
-      "createdAt": "2025-12-16T15:12:09.722Z",
-      "expiresAt": "2025-12-17T15:12:09.722Z"
-    },
-    {
-      "username": "josphatndungu102@gmail.com",
-      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6Impvc3BoYXRuZHVuZ3UxMDJAZ21haWwuY29tIiwiaXNBZG1pbiI6ZmFsc2UsImlhdCI6MTc2NTkwMDA4MiwiZXhwIjoxNzY1OTg2NDgyfQ.9F-VQBPyZDGUj9XgdijrmDsb-FEG5RbQEtS_eX1a5XM",
-      "createdAt": "2025-12-16T15:48:02.832Z",
-      "expiresAt": "2025-12-17T15:48:02.832Z"
-    }
-  ],
+  "users": {},
+  "tokens": [],
   "privileged": [],
   "withdrawals": [],
   "trades": [],
   "payments": [],
-  "transactions": [
-    {
-      "id": "1765900685967",
-      "username": "josphatndungu102@gmail.com",
-      "type": "deposit",
-      "method": "mpesa",
-      "amount": 60,
-      "status": "completed",
-      "timestamp": "2025-12-16T15:58:05.967Z"
-    },
-    {
-      "id": "1765913642412",
-      "username": "josphatndungu102@gmail.com",
-      "type": "deposit",
-      "method": "mpesa",
-      "amount": 60,
-      "status": "completed",
-      "timestamp": "2025-12-16T19:34:02.412Z"
-    },
-    {
-      "id": "1765913681764",
-      "username": "josphatndungu102@gmail.com",
-      "type": "deposit",
-      "method": "mpesa",
-      "amount": 90,
-      "status": "completed",
-      "timestamp": "2025-12-16T19:34:41.764Z"
-    }
-  ],
+  "transactions": [],
   "resetCodes": {}
 }
