@@ -299,38 +299,46 @@
         }
       };
 
-      // Try direct STK first
-      try {
-        const direct = await apiFetch(`/api/payhero/stk`, {
+      // Try Netlify function for STK push
+        try {
+          const useLocalBackend = (new URLSearchParams(window.location.search).get('useLocalBackend') === '1') && (location.hostname === '127.0.0.1' || location.hostname === 'localhost') && location.port === '5500';
+          const stkUrl = useLocalBackend ? 'http://localhost:5000/api/payment/intent' : '/.netlify/functions/stk-push';
+          const resp = await fetch(stkUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...payload, phone: normalized })
+          });
+        const direct = await resp.json().catch(() => ({}));
+        if (resp.ok && direct && direct.success) {
+          if (display) display.textContent = `Phone: ${phone}\nAmount: $${amount.toFixed(2)}\nStatus: STK requested. Check your phone...`;
+          return; // STK requested
+        }
+        // If not ok, fallthrough to hosted checkout
+      } catch (e) {
+        console.warn('Netlify stk-push failed:', e && e.message ? e.message : e);
+      }
+
+      // Fallback to hosted checkout via Netlify function
+        try {
+        const useLocalBackend = (new URLSearchParams(window.location.search).get('useLocalBackend') === '1') && (location.hostname === '127.0.0.1' || location.hostname === 'localhost') && location.port === '5500';
+        const createUrl = useLocalBackend ? 'http://localhost:5000/api/payhero/create-payment' : '/.netlify/functions/create-payment';
+        const resp = await fetch(createUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            ...payload,
-            phone: normalized
-          })
+          body: JSON.stringify({ email: user.email || user.username || 'guest@preotrader.fx', amount: amount, phone: normalized })
         });
-        if (direct && direct.success) {
-          if (display) display.textContent = `Phone: ${phone}\nAmount: $${amount.toFixed(2)}\nStatus: STK requested. Check your phone...`;
-          return; // No redirect needed for direct STK
+        const result = await resp.json().catch(() => ({}));
+        if (resp.ok && result && result.result && result.result.data && (result.result.data.payment_url || result.result.data.redirect_url)) {
+          const redirectUrl = result.result.data.payment_url || result.result.data.redirect_url;
+          if (display) display.textContent = `Phone: ${phone}\nAmount: $${amount.toFixed(2)}\nStatus: Redirecting to confirm...`;
+          window.location.href = redirectUrl;
+          return;
         }
-      } catch {}
-
-      // Fallback to hosted lipwa when direct fails
-      const result = await apiFetch(`/api/payhero/create-payment`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: user.email || user.username || 'guest@preotrader.fx',
-          amount: amount,
-          phone: normalized
-        })
-      });
-      if (result.success === false) throw new Error(result.error || result.message || 'Failed to create payment');
-
-      const redirectUrl = result?.data?.payment_url || result?.payment_url;
-      if (display) display.textContent = `Phone: ${phone}\nAmount: $${amount.toFixed(2)}\nStatus: Redirecting to confirm...`;
-      if (redirectUrl) {
-        window.location.href = redirectUrl; // same-tab navigation
+        throw new Error((result && (result.error || result.message)) || 'Failed to create hosted payment');
+      } catch (err) {
+        alert('Failed to send STK push: ' + (err.message || err));
+        if (display) display.textContent = 'Status: Failed to send STK push';
+        return;
       }
       // Hosted checkout typically requires user confirmation; polling may not reflect until webhook/callback.
     } catch (err) {

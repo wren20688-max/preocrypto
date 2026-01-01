@@ -455,7 +455,7 @@ window.applyTransactionFilters = function() {
   renderAllTransactions();
 };
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = '/api';
 
 // Check if user is logged in, redirect if not
 function checkAuth() {

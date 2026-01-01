@@ -11,10 +11,10 @@ const PayHeroConfig = {
   // PayHero API Credentials
   // Provided token and account id
   PUBLIC_KEY: '',
-  SECRET_KEY: 'TWhmU1hBM3RaTkhGTEg0bVBsTEY6dVc3U3BWdmFHMjJjb3VnZVI0b1NxYjAwZFJ0QXIyem1veEpvdEVBMg==',
+  SECRET_KEY: '',
   API_URL: 'https://api.payhero.io/v1',
-  WEBHOOK_URL: 'https://www.preocrypto.com/webhook/payhero',
-  ACCOUNT_ID: 3869,
+  WEBHOOK_URL: (typeof window !== 'undefined' && window.location ? (window.location.origin.replace(/\/$/, '') + '/.netlify/functions/webhook-payhero') : 'https://your-site.netlify.app/.netlify/functions/webhook-payhero'),
+  ACCOUNT_ID: null,
   
   // Payment method mappings for PayHero
   PAYMENT_METHODS: {
@@ -115,7 +115,7 @@ const PayHeroIntegration = {
     const totalAmount = amount + fee;
 
     // Create payment payload for PayHero
-    const baseUrl = 'https://preocrypto.onrender.com';
+    const baseUrl = (typeof window !== 'undefined' && window.location) ? window.location.origin : 'https://your-site.netlify.app';
     const webhookUrl = PayHeroConfig.WEBHOOK_URL || (baseUrl.replace(/\/$/, '') + '/webhook/payhero');
 
     const payload = {

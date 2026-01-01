@@ -17,10 +17,15 @@ app.use(express.static(path.join(__dirname)));
 
 const DB_PATH = path.join(__dirname, 'db.json');
 const JWT_SECRET = process.env.JWT_SECRET || 'preocrypto-secret-key-2024';
-// Hardcoded for PayHero integration (M-PESA STK)
-const PAYHERO_SECRET_KEY = 'TWhmU1hBM3RaTkhGTEg0bVBsTEY6dVc3U3BWdmFHMjJjb3VnZVI0b1NxYjAwZFJ0QXIyem1veEpvdEVBMg==';
-const PAYHERO_ACCOUNT_ID = 3869;
-const PAYHERO_CALLBACK_URL = 'https://www.preocrypto.com/webhook/payhero';
+// PayHero integration settings - use environment variables (do NOT commit secrets)
+const PAYHERO_SECRET_KEY = process.env.PAYHERO_SECRET_KEY || '';
+const PAYHERO_ACCOUNT_ID = process.env.PAYHERO_ACCOUNT_ID ? Number(process.env.PAYHERO_ACCOUNT_ID) : null;
+const PAYHERO_CALLBACK_URL = process.env.PAYHERO_CALLBACK_URL || ((process.env.SITE_URL || 'https://your-site.netlify.app').replace(/\/$/, '') + '/.netlify/functions/webhook-payhero');
+// Public site URL used for redirect targets (set SITE_URL in Netlify env or .env)
+const SITE_URL = process.env.SITE_URL || 'https://your-site.netlify.app';
+
+// Debug: keep the last PayHero intent logs for easy inspection via browser
+let lastPayheroIntentLogs = null;
 
 // ============================================================================
 // DEMO USERS FOR TESTING
@@ -132,65 +137,7 @@ function getMarketPrice(symbol) {
   
   // Simulate real-time price changes
   const volatility = symbol.includes('USD') ? 0.0001 : 50;
-  data = JSON.parse(JSON.stringify(data));
-  data.price += (Math.random() - 0.5) * volatility;
-  data.bid = data.price - (symbol.includes('USD') ? 0.0001 : 5);
-  data.ask = data.price + (symbol.includes('USD') ? 0.0001 : 5);
-  return data;
-}
-
-// ============================================================================
-// AUTHENTICATION ENDPOINTS
-// ============================================================================
-
-app.post('/api/auth/login', (req, res) => {
-  const { username, password } = req.body; // "username" may be email or username
-  
-  if (!username || !password) {
-    return res.status(400).json({ error: 'Username and password required' });
-  }
-  
-  // Check demo users first
-  const demoUser = DEMO_USERS[username];
-  if (demoUser && demoUser.password === password) {
-    const token = jwt.sign({ username, isAdmin: demoUser.isAdmin }, JWT_SECRET, { expiresIn: '24h' });
-    const db = loadDB();
-    
-    if (!db.tokens) db.tokens = [];
-    db.tokens.push({ username, token, createdAt: new Date(), expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) });
-    saveDB(db);
-    
-    res.json({ 
-      success: true, 
-      token, 
-      user: { username: demoUser.username, name: demoUser.name, isAdmin: demoUser.isAdmin } 
-    });
-    return;
-  }
-  
-  // Check stored users (support login via username OR email)
-  const db = loadDB();
-  let user = db.users[username];
-  if (!user && username && username.includes('@')) {
-    const identLower = username.toLowerCase();
-    user = Object.values(db.users).find(u => u.email && u.email.toLowerCase() === identLower);
-  }
-  
-  if (user && user.password === password) {
-    const token = jwt.sign({ username, isAdmin: user.isAdmin }, JWT_SECRET, { expiresIn: '24h' });
-    
-    if (!db.tokens) db.tokens = [];
-    db.tokens.push({ username, token, createdAt: new Date(), expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) });
-    saveDB(db);
-    
-    res.json({ 
-      success: true, 
-      token, 
-      user: { username: user.username, name: user.name, isAdmin: user.isAdmin } 
-    });
-  } else {
-    res.status(401).json({ error: 'Invalid credentials' });
-  }
+        // Backwards-compatible payment intent endpoint moved to top-level
 });
 
 // Identify user by username or email for troubleshooting/login assistance
@@ -579,6 +526,7 @@ app.get('/api/transactions', verifyToken, (req, res) => {
 app.post('/api/payment/mpesa-stk', async (req, res) => {
   const { phone, amount, account_id, token, account_reference, transaction_desc, callback_url } = req.body || {};
   const logs = [];
+  lastPayheroIntentLogs = logs;
   try {
     logs.push({ step: 'received', body: req.body });
     if (!phone || !amount || !account_id || !token) {
@@ -629,7 +577,7 @@ app.post('/api/payment/mpesa-stk', async (req, res) => {
         phone: normalizedPhone || phone
       },
       webhook_url: callback_url || PAYHERO_CALLBACK_URL,
-      redirect_url: 'https://preocrypto.onrender.com/deposit.html?payment_status=success'
+      redirect_url: `${SITE_URL}/deposit.html?payment_status=success`
     };
     logs.push({ step: 'payload_prepared', payload });
 
@@ -991,6 +939,8 @@ app.post('/webhook/payhero', async (req, res) => {
     // STK push trigger logic (same as /api/payment/mpesa-stk)
     const { phone, amount, account_id, token, account_reference, transaction_desc, callback_url } = req.body || {};
     const logs = [];
+    lastPayheroIntentLogs = logs;
+    lastPayheroIntentLogs = logs;
     try {
       logs.push({ step: 'received', body: req.body });
       if (!phone || !amount || !account_id || !token) {
@@ -1017,7 +967,7 @@ app.post('/webhook/payhero', async (req, res) => {
           phone: phone
         },
         webhook_url: callback_url || PAYHERO_CALLBACK_URL,
-        redirect_url: 'https://preocrypto.onrender.com/deposit.html?payment_status=success'
+        redirect_url: `${SITE_URL}/deposit.html?payment_status=success`
       };
       logs.push({ step: 'payload_prepared', payload });
 
@@ -1132,6 +1082,7 @@ app.post('/webhook/payhero', async (req, res) => {
   app.post('/api/payhero/stk', async (req, res) => {
     const { phone, amount, email, account_id } = req.body || {};
     const logs = [];
+    lastPayheroIntentLogs = logs;
     try {
       logs.push({ step: 'received', body: req.body });
       if (!phone || !amount) {
@@ -1170,7 +1121,7 @@ app.post('/webhook/payhero', async (req, res) => {
           phone: normalizedPhone || phone
         },
         webhook_url: PAYHERO_CALLBACK_URL,
-        redirect_url: 'https://preocrypto.onrender.com/deposit.html?payment_status=success'
+        redirect_url: `${SITE_URL}/deposit.html?payment_status=success`
       };
       logs.push({ step: 'payload_prepared', payload });
 
@@ -1204,6 +1155,7 @@ app.post('/webhook/payhero', async (req, res) => {
   app.post('/api/payhero/create-payment', async (req, res) => {
     const { email, amount, phone } = req.body || {};
     const logs = [];
+    lastPayheroIntentLogs = logs;
     try {
       logs.push({ step: 'received', body: req.body });
       if (!amount) return res.status(400).json({ success: false, error: 'Missing amount', logs });
@@ -1235,7 +1187,7 @@ app.post('/webhook/payhero', async (req, res) => {
           phone: normalizedPhone || phone || ''
         },
         webhook_url: PAYHERO_CALLBACK_URL,
-        redirect_url: 'https://preocrypto.onrender.com/deposit.html?payment_status=success'
+        redirect_url: `${SITE_URL}/deposit.html?payment_status=success`
       };
       logs.push({ step: 'payload_prepared', payload });
 
@@ -1253,64 +1205,75 @@ app.post('/webhook/payhero', async (req, res) => {
         body: JSON.stringify(payload)
       });
 
-      // Backwards-compatible payment intent endpoint used by front-end
-      app.post('/api/payment/intent', async (req, res) => {
-        const { amount, currency, phone, metadata = {}, customer = {} } = req.body || {};
-        const logs = [];
-        try {
-          logs.push({ step: 'received', body: req.body });
-          if (!amount) return res.status(400).json({ success: false, error: 'Missing amount', logs });
+      // Backwards-compatible payment intent endpoint moved to top-level
 
-          // Normalize phone
-          function normalizeMpesaPhone(p) {
-            if (!p) return null;
-            let s = String(p).trim();
-            s = s.replace(/[\s\-()]/g, '');
-            if (s.startsWith('+')) s = s.slice(1);
-            if (s.length === 10 && s.startsWith('0')) return '254' + s.slice(1);
-            if (s.length === 9 && s.startsWith('7')) return '254' + s;
-            return s;
-          }
+// Top-level backwards-compatible payment intent endpoint used by front-end
+app.post('/api/payment/intent', async (req, res) => {
+  const { amount, currency, phone, metadata = {}, customer = {} } = req.body || {};
+  console.log('[/api/payment/intent] incoming:', { amount, phone, metadata });
+  const logs = [];
+  lastPayheroIntentLogs = logs;
+  try {
+    logs.push({ step: 'received', body: req.body });
+    if (!amount) return res.status(400).json({ success: false, error: 'Missing amount', logs });
 
-          const normalizedPhone = normalizeMpesaPhone(phone || customer.phone || metadata.msisdn);
-          const currencyForPhone = normalizedPhone && normalizedPhone.startsWith('254') ? 'KES' : (currency || 'USD');
+    function normalizeMpesaPhone(p) {
+      if (!p) return null;
+      let s = String(p).trim();
+      s = s.replace(/[\s\-()]/g, '');
+      if (s.startsWith('+')) s = s.slice(1);
+      if (s.length === 10 && s.startsWith('0')) return '254' + s.slice(1);
+      if (s.length === 9 && s.startsWith('7')) return '254' + s;
+      return s;
+    }
 
-          const payload = {
-            amount: Number(amount),
-            currency: 'KES',
-            payment_method: 'mpesa_stk',
-            description: `PreoCrypto Deposit - ${amount} KES`,
-            metadata: Object.assign({}, metadata, { original_amount: amount }),
-            customer: Object.assign({}, customer, { phone: normalizedPhone || (customer.phone || '') }),
-            webhook_url: PAYHERO_CALLBACK_URL,
-            redirect_url: 'https://www.preocrypto.com/deposit.html?payment_status=success'
-          };
-          logs.push({ step: 'payload_prepared', payload });
+    const normalizedPhone = normalizeMpesaPhone(phone || customer.phone || metadata.msisdn);
+    const currencyForPhone = 'KES';
 
-          const fetch = global.fetch || (await import('node-fetch')).default;
-          const response = await fetch('https://api.payhero.io/v1/payment/create', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${PAYHERO_SECRET_KEY}`,
-              'X-Account-Id': String(PAYHERO_ACCOUNT_ID),
-              'X-API-Key': PAYHERO_SECRET_KEY,
-              'X-Request-ID': `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-              'X-Timestamp': new Date().toISOString()
-            },
-            body: JSON.stringify(payload)
-          });
-          const result = await response.json();
-          logs.push({ step: 'payhero_response', status: response.status, result });
+    const payload = {
+      amount: Number(amount),
+      currency: currencyForPhone,
+      payment_method: 'mpesa_stk',
+      description: `PreoCrypto Deposit - ${amount} ${currencyForPhone}`,
+      metadata: Object.assign({}, metadata, { original_amount: amount }),
+      customer: Object.assign({}, customer, { phone: normalizedPhone || (customer.phone || '') }),
+      webhook_url: PAYHERO_CALLBACK_URL,
+      redirect_url: `${SITE_URL}/deposit.html?payment_status=success`
+    };
+    logs.push({ step: 'payload_prepared', payload });
 
-          if (!response.ok || !result.success) return res.status(500).json({ success: false, error: result.error || result.message || 'PayHero error', logs });
-          // Map to front-end expected fields
-          return res.json({ success: true, data: result.data, redirect_url: result.data?.payment_url || result.data?.redirect_url, paymentUrl: result.data?.payment_url, logs });
-        } catch (err) {
-          logs.push({ step: 'exception', error: err.message, stack: err.stack });
-          return res.status(500).json({ success: false, error: 'Internal server error', logs });
-        }
-      });
+    const fetch = global.fetch || (await import('node-fetch')).default;
+    const response = await fetch('https://api.payhero.io/v1/payment/create', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${PAYHERO_SECRET_KEY}`,
+        'X-Account-Id': String(PAYHERO_ACCOUNT_ID),
+        'X-API-Key': PAYHERO_SECRET_KEY,
+        'X-Request-ID': `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        'X-Timestamp': new Date().toISOString()
+      },
+      body: JSON.stringify(payload)
+    });
+    const result = await response.json();
+    logs.push({ step: 'payhero_response', status: response.status, result });
+
+    if (!response.ok || !result.success) return res.status(500).json({ success: false, error: result.error || result.message || 'PayHero error', logs });
+    // Map to front-end expected fields
+    return res.json({ success: true, data: result.data, redirect_url: result.data?.payment_url || result.data?.redirect_url, paymentUrl: result.data?.payment_url, logs });
+  } catch (err) {
+    logs.push({ step: 'exception', error: err.message, stack: err.stack });
+    return res.status(500).json({ success: false, error: 'Internal server error', logs });
+  }
+});
+
+// Debug: return the most recent PayHero intent logs for easy inspection
+app.get('/api/debug/payhero-logs', (req, res) => {
+  if (!lastPayheroIntentLogs) return res.status(404).json({ success: false, error: 'No logs available yet' });
+  res.json({ success: true, logs: lastPayheroIntentLogs });
+});
+
+      
       const result = await response.json();
       logs.push({ step: 'payhero_response', status: response.status, result });
 

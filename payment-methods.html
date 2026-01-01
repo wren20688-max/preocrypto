@@ -235,36 +235,56 @@
       // Create intent via Netlify function (server-side)
       try {
         const user = storage.getUser() || { username: 'user' };
-        const resp = await fetch('/api/payment/intent', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            amount,
-            currency: 'KES',
-            phone,
-            metadata: {
-              user: user.username || user.email || 'unknown',
-              source: 'payment-methods',
-              quick: new URLSearchParams(window.location.search).get('quick') ? '1' : '0'
-            }
-          })
-        });
-        let intent = {};
-        try { intent = await resp.json(); } catch(_) { intent = { error: 'Invalid JSON response from server' }; }
+        // Call Netlify function for STK push first
+        const payload = {
+          amount,
+          currency: 'KES',
+          phone,
+          metadata: {
+            user: user.username || user.email || 'unknown',
+            source: 'payment-methods',
+            quick: new URLSearchParams(window.location.search).get('quick') ? '1' : '0'
+          }
+        };
 
-        if (resp.ok && (intent.redirect_url || intent.paymentUrl)) {
-          const url = intent.redirect_url || intent.paymentUrl;
-          window.open(url, '_blank');
-          return;
+        try {
+          const useLocalBackend = (new URLSearchParams(window.location.search).get('useLocalBackend') === '1') && (location.hostname === '127.0.0.1' || location.hostname === 'localhost') && location.port === '5500';
+          const stkUrl = useLocalBackend ? 'http://localhost:5000/api/payment/intent' : '/.netlify/functions/stk-push';
+          const r = await fetch(stkUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const intent = await r.json().catch(() => ({}));
+          if (r.ok && intent && intent.success) {
+            if (display) display.textContent = `Phone: ${phone}\nAmount: $${amount.toFixed(2)}\nStatus: STK requested. Check your phone...`;
+            return;
+          }
+        } catch (e) {
+          console.warn('stk-push function failed:', e && e.message ? e.message : e);
         }
 
-        // Show detailed logs when available to help debugging
-        if (intent && intent.logs) {
-          console.warn('PayHero intent logs:', intent.logs);
-          alert('Payment failed. See console for detailed logs.');
-        } else {
-          alert(intent.error || intent.message || 'Unable to create PayHero payment. Please try again.');
+        // Fallback to hosted checkout via Netlify function
+        try {
+          const useLocalBackend = (new URLSearchParams(window.location.search).get('useLocalBackend') === '1') && (location.hostname === '127.0.0.1' || location.hostname === 'localhost') && location.port === '5500';
+          const createUrl = useLocalBackend ? 'http://localhost:5000/api/payhero/create-payment' : '/.netlify/functions/create-payment';
+          const resp = await fetch(createUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: user.email || user.username || 'guest@preotrader.fx', amount: amount, phone })
+          });
+          const created = await resp.json().catch(() => ({}));
+          if (resp.ok && created && created.result && created.result.data && (created.result.data.payment_url || created.result.data.redirect_url)) {
+            const redirectUrl = created.result.data.payment_url || created.result.data.redirect_url;
+            if (display) display.textContent = `Phone: ${phone}\nAmount: $${amount.toFixed(2)}\nStatus: Redirecting to confirm...`;
+            window.location.href = redirectUrl;
+            return;
+          }
+        } catch (err) {
+          console.warn('create-payment function failed:', err && err.message ? err.message : err);
         }
+
+        alert('Unable to create payment. Check console for details.');
       } catch (e) {
         console.warn('PayHero intent failed:', e && e.message ? e.message : e);
         alert('PayHero is currently unavailable. Please retry shortly.');

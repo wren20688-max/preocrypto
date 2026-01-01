@@ -57,9 +57,9 @@
     supportEmail: contacts.email,
     supportPhone: contacts.phone,
     // Base URL for redirects/webhooks (used by PayHero)
-    baseUrl: 'https://preocrypto.onrender.com',
+    baseUrl: (typeof window !== 'undefined' && window.location) ? window.location.origin : 'https://your-site.netlify.app',
     // Preferred API origin for local dev fallbacks
-    apiOrigin: 'https://preocrypto.netlify.app'
+    apiOrigin: (typeof window !== 'undefined' && window.location) ? window.location.origin : 'https://your-site.netlify.app'
   };
 
   try {
