@@ -249,15 +249,24 @@
             }
           })
         });
-        const intent = await resp.json();
+        let intent = {};
+        try { intent = await resp.json(); } catch(_) { intent = { error: 'Invalid JSON response from server' }; }
+
         if (resp.ok && (intent.redirect_url || intent.paymentUrl)) {
           const url = intent.redirect_url || intent.paymentUrl;
           window.open(url, '_blank');
+          return;
+        }
+
+        // Show detailed logs when available to help debugging
+        if (intent && intent.logs) {
+          console.warn('PayHero intent logs:', intent.logs);
+          alert('Payment failed. See console for detailed logs.');
         } else {
-          alert(intent.error || 'Unable to create PayHero payment. Please try again.');
+          alert(intent.error || intent.message || 'Unable to create PayHero payment. Please try again.');
         }
       } catch (e) {
-        console.warn('PayHero intent failed:', e.message);
+        console.warn('PayHero intent failed:', e && e.message ? e.message : e);
         alert('PayHero is currently unavailable. Please retry shortly.');
       }
     }

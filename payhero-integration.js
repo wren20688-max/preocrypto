@@ -13,7 +13,7 @@ const PayHeroConfig = {
   PUBLIC_KEY: '',
   SECRET_KEY: 'TWhmU1hBM3RaTkhGTEg0bVBsTEY6dVc3U3BWdmFHMjJjb3VnZVI0b1NxYjAwZFJ0QXIyem1veEpvdEVBMg==',
   API_URL: 'https://api.payhero.io/v1',
-  WEBHOOK_URL: 'https://preocrypto.onrender.com/webhook/payhero',
+  WEBHOOK_URL: 'https://www.preocrypto.com/webhook/payhero',
   ACCOUNT_ID: 3869,
   
   // Payment method mappings for PayHero
