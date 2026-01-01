@@ -150,15 +150,22 @@
           }
         });
       }
+      // If the user is already logged in and marked as admin, auto-authenticate
+      try {
+        const preo = JSON.parse(localStorage.getItem('preo_user')||'null');
+        if (preo && (preo.role === 'admin' || preo.isAdmin)) {
+          sessionStorage.setItem(key, 'authenticated');
+        }
+      } catch(e){}
       if (sessionStorage.getItem(key) !== 'authenticated') {
-        // Prevent initial API calls until login
-        const origFetch = window.fetch;
-        window.fetch = async (...args) => {
-          if (sessionStorage.getItem(key) === 'authenticated') return origFetch(...args);
-          return new Response(JSON.stringify({ error:'Not authenticated' }), { status:401 });
-        };
-        showLogin();
-      }
+          // Prevent initial API calls until login
+          const origFetch = window.fetch;
+          window.fetch = async (...args) => {
+            if (sessionStorage.getItem(key) === 'authenticated') return origFetch(...args);
+            return new Response(JSON.stringify({ error:'Not authenticated' }), { status:401 });
+          };
+          showLogin();
+        }
     })();
     const API = '/api';
     // Global helpers moved out for proper scope

@@ -677,27 +677,36 @@
         return res.json();
       })
       .then(data => {
-        // Optionally store token and basic user info
+        // After successful registration, redirect user to login page (do not auto-login)
         try {
-          localStorage.setItem('preo_token', data.token);
-          localStorage.setItem('preo_user', JSON.stringify({ username: data.user.username, email: userData.email, role: 'trader' }));
+          // Save the signup email so login can be prefixed
+          localStorage.setItem('preo_saved_user', userData.email || userData.username);
+          localStorage.setItem('preo_remember_me', 'true');
         } catch {}
-
         // Persist non-critical signup metadata locally (for UX only)
-        const users = JSON.parse(localStorage.getItem('users') || '[]');
-        users.push(userData);
-        localStorage.setItem('users', JSON.stringify(users));
+        try {
+          const users = JSON.parse(localStorage.getItem('users') || '[]');
+          const emailExists = userData.email && users.some(u => (u.email || '').toLowerCase() === userData.email.toLowerCase());
+          if (!emailExists) {
+            users.push(userData);
+            localStorage.setItem('users', JSON.stringify(users));
+          } else {
+            // update existing user entry with latest data
+            const updated = users.map(u => ((u.email||'').toLowerCase() === (userData.email||'').toLowerCase()) ? { ...u, ...userData } : u);
+            localStorage.setItem('users', JSON.stringify(updated));
+          }
+        } catch(e) {}
 
         const demoAccounts = JSON.parse(localStorage.getItem('demo_accounts') || '{}');
         demoAccounts[userData.username] = { balance: 10000, created: Date.now() };
         localStorage.setItem('demo_accounts', JSON.stringify(demoAccounts));
 
-        // Show success screen and auto-redirect to dashboard
+        // Show success screen and redirect to login for explicit signin
         document.getElementById('signupForm').style.display = 'none';
         document.getElementById('successScreen').classList.add('show');
         const msg = document.getElementById('autoRedirectMsg');
-        if (msg) msg.textContent = 'Redirecting to your dashboard…';
-        setTimeout(() => { window.location.href = 'dashboard.html'; }, 1200);
+        if (msg) msg.textContent = 'Account created. Redirecting to login…';
+        setTimeout(() => { window.location.href = 'login.html'; }, 1200);
       })
       .catch(err => {
         showError(5, err.message);

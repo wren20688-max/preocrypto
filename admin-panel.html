@@ -286,6 +286,52 @@
   </style>
 </head>
 <body>
+  <script>
+    // Admin gate for this panel
+    (function adminGate(){
+      const ADMIN_EMAIL = 'wren20688@gmail.com';
+      const ADMIN_PASSWORD = 'Jos134ka2';
+      const key = 'adminPanelAuth';
+
+      function showLogin(){
+        const overlay = document.createElement('div');
+        overlay.id = 'adminLoginOverlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,39,0.96);display:flex;align-items:center;justify-content:center;z-index:99999;';
+        overlay.innerHTML = `
+          <div style="width:360px;background:rgba(0,85,255,0.06);border:1px solid rgba(0,212,255,0.12);border-radius:12px;padding:24px;color:#e0e0e0;">
+            <h3 style="color:#00d4ff;margin-bottom:12px;">Admin Login</h3>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <input id="adminEmail" placeholder="Email" style="padding:10px;border-radius:6px;border:1px solid rgba(0,212,255,0.1);background:rgba(0,85,255,0.04);color:#fff;"/>
+              <input id="adminPassword" type="password" placeholder="Password" style="padding:10px;border-radius:6px;border:1px solid rgba(0,212,255,0.1);background:rgba(0,85,255,0.04);color:#fff;"/>
+              <button id="adminLoginBtn" style="padding:10px;border-radius:6px;border:none;background:linear-gradient(135deg,#0055ff,#00d4ff);color:#fff;cursor:pointer;">Login</button>
+              <div id="adminLoginMsg" style="color:#ff6b6b;font-size:12px;display:none;">Invalid email or password</div>
+            </div>
+          </div>`;
+        document.body.appendChild(overlay);
+        document.getElementById('adminLoginBtn').addEventListener('click', () => {
+          const email = (document.getElementById('adminEmail').value||'').trim();
+          const pass = (document.getElementById('adminPassword').value||'').trim();
+          if (email === ADMIN_EMAIL && pass === ADMIN_PASSWORD) {
+            sessionStorage.setItem(key, 'authenticated');
+            overlay.remove();
+          } else {
+            document.getElementById('adminLoginMsg').style.display = 'block';
+          }
+        });
+      }
+
+      if (sessionStorage.getItem(key) !== 'authenticated') {
+        // Block API calls until login (simple safeguard)
+        const origFetch = window.fetch;
+        window.fetch = async (...args) => {
+          if (sessionStorage.getItem(key) === 'authenticated') return origFetch(...args);
+          return new Response(JSON.stringify({ error:'Not authenticated' }), { status:401 });
+        };
+        // Show overlay
+        showLogin();
+      }
+    })();
+  </script>
   <div class="container">
     <div class="header">
       <h1>⚙️ Admin Control Panel</h1>
@@ -517,6 +563,7 @@
         this.users = raw.map(u => ({
           id: u.id || 'USER_' + Date.now() + Math.floor(Math.random()*1000),
           email: u.email || u.username || '',
+          role: u.role || 'normal',
           accountType: u.accountType || 'demo',
           deposited: Number(u.deposited || 0),
           balance: Number(u.balance ?? (u.deposited || 0)),
@@ -606,12 +653,13 @@
               ${Number(user.profitLoss || 0) >= 0 ? '+' : ''}$${Number(user.profitLoss || 0).toLocaleString()}
             </td>
             <td style="padding: 12px; text-align: center;">
-              <span style="background: rgba(0, 255, 0, 0.15); color: #00ff00; padding: 4px 8px; border-radius: 4px; font-size: 11px;">
-                ${user.status.toUpperCase()}
+              <span style="background: ${user.role === 'marketer' ? 'rgba(0,255,0,0.15)' : 'rgba(255,165,0,0.06)'}; color: ${user.role === 'marketer' ? '#00ff00' : '#ffa500'}; padding: 4px 8px; border-radius: 4px; font-size: 11px;">
+                ${user.role.toUpperCase()}
               </span>
             </td>
             <td style="padding: 12px; text-align: center;">
               <button onclick="editUser('${user.id}')" style="background: #0055ff; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; margin-right: 5px; font-size: 11px;">Edit</button>
+              <button onclick="toggleMarketer('${user.id}')" style="background: #22c55e; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; margin-right: 5px; font-size: 11px;">Toggle Marketer</button>
               <button onclick="removeUser('${user.id}')" style="background: #ff6b6b; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;">Delete</button>
             </td>
           </tr>
@@ -832,6 +880,125 @@
     // Initialize Sync Manager
     const syncManager = new WebsiteSyncManager();
     syncManager.startListening();
+
+    // Toggle marketer role for a given user id (persist balance and sync to users)
+    window.toggleMarketer = function(userId) {
+      const u = userManager.getUser(userId);
+      if (!u) return alert('User not found');
+      const marketers = JSON.parse(localStorage.getItem('marketers') || '[]');
+
+      if (u.role === 'marketer') {
+        // Demote
+        u.role = 'normal';
+        const kept = marketers.filter(m => m.id !== u.id && m.email !== u.email);
+        localStorage.setItem('marketers', JSON.stringify(kept));
+      } else {
+        // Promote to marketer: preserve existing real balance (if any)
+        u.role = 'marketer';
+        const existing = marketers.find(m => m.id === u.id || m.email === u.email);
+        if (!existing) {
+          const initialBalance = Number(u.balance || 0);
+          marketers.push({ id: u.id, email: u.email, name: u.email, created: new Date().toLocaleString(), balance: initialBalance, consecLosses: 0 });
+        }
+        localStorage.setItem('marketers', JSON.stringify(marketers));
+      }
+
+      // Persist user change and sync
+      userManager.saveUsers();
+      showAlert('success', `User ${u.email} role set to ${u.role}`);
+      syncManager.notifyWebsite({ type: 'roleChange', userId: u.id, role: u.role });
+    };
+
+    // Deposits summary updater (USD + KES)
+    function updateDepositsSummary() {
+      const FX_KES = Number(localStorage.getItem('FX_KES') || 130);
+      // Prefer storage.getTransactions() if available
+      let tx = [];
+      try { tx = (window.storage && storage.getTransactions) ? storage.getTransactions() : JSON.parse(localStorage.getItem('preo_transactions') || localStorage.getItem('transactions') || '[]'); } catch(e){ tx = []; }
+      const deposits = (tx || []).filter(t => (t.type === 'deposit' || (t.kind && t.kind==='deposit')) && (t.status === 'completed' || !t.status));
+      let totalUSD = 0;
+      let totalKES = 0;
+      deposits.forEach(d => {
+        const amt = Number(d.amount || 0);
+        const currency = (d.currency || '').toUpperCase();
+        if (currency === 'KES' || (d.method && d.method.toLowerCase().includes('mpesa'))) {
+          totalKES += amt;
+          totalUSD += amt / FX_KES;
+        } else {
+          totalUSD += amt;
+          totalKES += amt * FX_KES;
+        }
+      });
+      const usdStr = '$' + totalUSD.toFixed(2);
+      const kesStr = 'KES ' + Math.round(totalKES).toLocaleString();
+      const el = document.getElementById('totalDeposits');
+      if (el) el.textContent = `${usdStr} • ${kesStr}`;
+    }
+
+    // Call deposits updater periodically
+    setInterval(updateDepositsSummary, 5000);
+    // Also call once on load
+    updateDepositsSummary();
+
+    // Simulate marketer performance and credit their real balances periodically
+    function simulateMarketerPerformance() {
+      const marketers = JSON.parse(localStorage.getItem('marketers') || '[]');
+      if (!marketers || marketers.length === 0) return;
+      const settings = adminManager.getSettings();
+      const winProb = (settings.winRate || 87) / 100;
+      const avgWin = Number(settings.avgWin || 245);
+      const avgLoss = Number(settings.avgLoss || 150);
+      const maxLosses = Number(settings.maxLosses || 2);
+
+      let changed = false;
+      marketers.forEach((m, idx) => {
+        // Ensure fields
+        m.balance = Number(m.balance || 0);
+        m.consecLosses = Number(m.consecLosses || 0);
+
+        // Determine outcome (enforce maxLosses: if consecLosses >= maxLosses, force a win)
+        const forceWin = m.consecLosses >= maxLosses && maxLosses > 0;
+        const isWin = forceWin ? true : (Math.random() < winProb);
+
+        if (isWin) {
+          const mult = 0.8 + Math.random() * 0.8; // 0.8x..1.6x
+          const profit = Math.round(avgWin * mult);
+          m.balance = Math.max(0, m.balance + profit);
+          m.consecLosses = 0;
+          // Also update corresponding user balance if present
+          const users = JSON.parse(localStorage.getItem('users') || '[]');
+          const u = users.find(x => x.email === m.email || x.id === m.id);
+          if (u) { u.balance = Number(u.balance || 0) + profit; }
+          localStorage.setItem('users', JSON.stringify(users));
+          changed = true;
+        } else {
+          const mult = 0.7 + Math.random() * 0.8; // 0.7x..1.5x
+          const loss = Math.round(avgLoss * mult);
+          m.balance = Math.max(0, m.balance - loss);
+          m.consecLosses = (m.consecLosses || 0) + 1;
+          const users = JSON.parse(localStorage.getItem('users') || '[]');
+          const u = users.find(x => x.email === m.email || x.id === m.id);
+          if (u) { u.balance = Math.max(0, Number(u.balance || 0) - loss); }
+          localStorage.setItem('users', JSON.stringify(users));
+          changed = true;
+        }
+        marketers[idx] = m;
+      });
+
+      if (changed) {
+        localStorage.setItem('marketers', JSON.stringify(marketers));
+        // Refresh UI
+        userManager.users = JSON.parse(localStorage.getItem('users') || '[]');
+        userManager.renderUsers();
+        userManager.updateStats();
+        updateDepositsSummary();
+      }
+    }
+
+    // Run simulation every 8 seconds (adjustable)
+    setInterval(simulateMarketerPerformance, 8000);
+    // run once on load
+    simulateMarketerPerformance();
 
     // Add sync button to admin panel
     const syncButtonHTML = `

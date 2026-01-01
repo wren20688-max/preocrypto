@@ -3,6 +3,14 @@
 // Handles trading functionality, data management, and UI interactions
 // ============================================================================
 
+// Auth check: require preo_user and preo_token
+try {
+  if (!(localStorage.getItem('preo_user') && localStorage.getItem('preo_token'))) {
+    localStorage.setItem('preo_next', location.pathname + location.search + location.hash);
+    location.replace('login.html');
+  }
+} catch(e) {}
+
 // ============================================================================
 // GLOBAL STATE & CONFIG
 // ============================================================================
@@ -101,20 +109,89 @@ function initializeApp() {
     .catch(() => {})
     .finally(() => {
       // Initialize chart first, then setup listeners
-      setTimeout(() => {
-        initChart();
-        setupChartControls();
-        // Keep legacy UI listeners (trade, tabs, etc.)
-        setupEventListeners();
-        // Populate recent wins on load
-        updateRecentWinsDisplay();
-        // Start realtime updates aligned to timeframe
-        startRealtimeFeed();
-      }, 300);
+          setTimeout(() => {
+            if (typeof window === 'undefined' || window.CHARTS_ENABLED !== false) {
+              try { initChart(); } catch(_) {}
+              try { setupChartControls(); } catch(_) {}
+              try { startRealtimeFeed(); } catch(_) {}
+            }
+            // Keep legacy UI listeners (trade, tabs, etc.)
+            setupEventListeners();
+            // Populate recent wins on load
+            updateRecentWinsDisplay();
+          }, 300);
     });
+
+  // Fallback: if accountCreatedAt still empty, try to read from local `users` storage
+  if (!globalState.accountCreatedAt) {
+    try {
+      const users = JSON.parse(localStorage.getItem('users') || '[]');
+      const found = users.find(u => (u.email && globalState.user && u.email === globalState.user.email) || (u.id && globalState.user && u.id === globalState.user.id));
+      if (found && found.createdAt) {
+        globalState.accountCreatedAt = found.createdAt;
+        const label = document.getElementById('accountOpenLabel');
+        if (label) label.textContent = `Account opened: ${new Date(found.createdAt).toLocaleString()}`;
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
   
   // Update prices periodically
   setInterval(updatePrices, 2000);
+}
+
+// Simple canvas fallback renderer for environments where LightweightCharts is unavailable
+function renderCanvasFallback(container, width = 600, height = 300) {
+  container.innerHTML = '';
+  const c = document.createElement('canvas');
+  c.style.width = '100%';
+  c.style.height = height + 'px';
+  c.id = 'fallbackChart';
+  container.appendChild(c);
+  const ctx = c.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const w = Math.floor(container.clientWidth * dpr);
+  const h = Math.floor(height * dpr);
+  c.width = w; c.height = h; ctx.scale(dpr, dpr);
+
+  // Seed data
+  let data = generateCandleData().slice(-80).map(d => ({ t: d.time, o: d.open, h: d.high, l: d.low, c: d.close }));
+  function draw() {
+    const cw = container.clientWidth;
+    const ch = height;
+    ctx.clearRect(0,0,cw,ch);
+    // background
+    ctx.fillStyle = '#0f1419'; ctx.fillRect(0,0,cw,ch);
+    if (!data.length) return;
+    const prices = data.map(d=>d.c);
+    const min = Math.min(...prices); const max = Math.max(...prices);
+    const pad = 6; const step = (cw - pad*2) / Math.max(1, data.length-1);
+    // area
+    ctx.beginPath();
+    data.forEach((d,i)=>{
+      const x = pad + i*step; const y = pad + (1 - (d.c - min)/(max - min + 1e-9))*(ch - pad*2);
+      if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    });
+    ctx.strokeStyle = '#00d4ff'; ctx.lineWidth = 2; ctx.stroke();
+    // last price
+    const last = data[data.length-1].c;
+    ctx.fillStyle = '#cbd5e1'; ctx.font = '12px system-ui'; ctx.fillText(last.toFixed(4), 8, 16);
+  }
+
+  // update loop: append small random moves similar to generator
+  setInterval(() => {
+    const last = data.length ? data[data.length-1].c : 1.0945;
+    const tf = Math.max(1, Number(globalState.currentTimeframe) || 5);
+    const change = (Math.random() - 0.5) * (0.0005 * (30 / Math.max(1, tf)));
+    const next = Math.max(0.0001, last + change);
+    const now = Math.floor(Date.now()/1000);
+    data.push({ t: now, o: last, h: Math.max(last,next), l: Math.min(last,next), c: next });
+    if (data.length > 120) data.shift();
+    draw();
+  }, 1000);
+
+  draw();
 }
 
 async function loadUserProfileCreatedAt() {
@@ -768,8 +845,15 @@ function initChart() {
   
   // Wait for LightweightCharts to load
   if (!window.LightweightCharts) {
-    console.warn('LightweightCharts not loaded yet, retrying...');
-    setTimeout(initChart, 500);
+    // Retry a few times, then render a simple canvas fallback for mobile/blocked CDN
+    window.__lwChartRetries = (window.__lwChartRetries || 0) + 1;
+    if (window.__lwChartRetries <= 6) {
+      console.warn('LightweightCharts not loaded yet, retrying... attempt', window.__lwChartRetries);
+      setTimeout(initChart, 500);
+      return;
+    }
+    console.warn('LightweightCharts failed to load after retries — rendering canvas fallback');
+    renderCanvasFallback(container, width, height);
     return;
   }
   
@@ -785,7 +869,11 @@ function initChart() {
       },
       timeScale: {
         timeVisible: true,
-        secondsVisible: false
+        secondsVisible: true,
+        tickMarkFormatter: (time) => {
+          const d = new Date((time * 1000));
+          return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
       },
       rightPriceScale: {
         borderColor: '#2d3748',
@@ -915,8 +1003,8 @@ function createChartSeries(chart, chartType) {
 
 function generateCandleData() {
   const data = [];
-  const timeframeMinutes = globalState.currentTimeframe;
-  const timeframeSeconds = timeframeMinutes * 60;
+  // `globalState.currentTimeframe` is expressed in seconds (e.g. 5 = 5s, 60 = 60s)
+  const timeframeSeconds = Math.max(1, Number(globalState.currentTimeframe) || 5);
   const nowTs = Math.floor(Date.now() / 1000);
   const createdTs = globalState.accountCreatedAt ? Math.floor(new Date(globalState.accountCreatedAt).getTime() / 1000) : null;
   const maxCandles = 600;

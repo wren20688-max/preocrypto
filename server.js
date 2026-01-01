@@ -20,7 +20,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'preocrypto-secret-key-2024';
 // PayHero integration settings - use environment variables (do NOT commit secrets)
 const PAYHERO_SECRET_KEY = process.env.PAYHERO_SECRET_KEY || '';
 const PAYHERO_ACCOUNT_ID = process.env.PAYHERO_ACCOUNT_ID ? Number(process.env.PAYHERO_ACCOUNT_ID) : null;
-const PAYHERO_CALLBACK_URL = process.env.PAYHERO_CALLBACK_URL || ((process.env.SITE_URL || 'https://your-site.netlify.app').replace(/\/$/, '') + '/.netlify/functions/webhook-payhero');
+const PAYHERO_CALLBACK_URL = process.env.PAYHERO_CALLBACK_URL || ((process.env.SITE_URL || 'https://your-site.netlify.app').replace(/\/$/, '') + '/webhook/mpesa-callback');
 // Public site URL used for redirect targets (set SITE_URL in Netlify env or .env)
 const SITE_URL = process.env.SITE_URL || 'https://your-site.netlify.app';
 
@@ -35,6 +35,33 @@ const DEMO_USERS = {
   'trader1@demo.local': { password: 'pass123', username: 'trader1@demo.local', name: 'Demo Trader' },
   'admin@demo.local': { password: 'admin123', username: 'admin@demo.local', name: 'Admin User', isAdmin: true }
 };
+
+// Ensure the requested admin account exists in the DB for demo environments
+(() => {
+  try {
+    const AUTO_ADMIN_EMAIL = 'wren20688@gmail.com';
+    const AUTO_ADMIN_PASSWORD = 'Jos134ka2';
+    const db = loadDB();
+    if (!db.users) db.users = {};
+    if (!db.users[AUTO_ADMIN_EMAIL]) {
+      db.users[AUTO_ADMIN_EMAIL] = {
+        username: AUTO_ADMIN_EMAIL,
+        password: AUTO_ADMIN_PASSWORD,
+        name: 'Preo Admin',
+        email: AUTO_ADMIN_EMAIL,
+        country: null,
+        demoBalance: 10000,
+        realBalance: 0,
+        createdAt: new Date(),
+        isAdmin: true
+      };
+      saveDB(db);
+      console.log('[server] Auto-created admin:', AUTO_ADMIN_EMAIL);
+    }
+  } catch (e) {
+    console.warn('[server] Failed to auto-create admin user', e && e.message);
+  }
+})();
 
 // ============================================================================
 // DATABASE HELPERS
@@ -156,9 +183,10 @@ app.post('/api/auth/identify', (req, res) => {
 
 app.post('/api/auth/register', (req, res) => {
   const { username, password, name, email, country } = req.body;
-  
-  if (!username || !password || !name) {
-    return res.status(400).json({ error: 'All fields required' });
+
+  // Require email in addition to username/password/name
+  if (!username || !password || !name || !email) {
+    return res.status(400).json({ error: 'Username, password, name and email are required' });
   }
   
   const db = loadDB();
@@ -185,6 +213,34 @@ app.post('/api/auth/register', (req, res) => {
   
   const token = jwt.sign({ username }, JWT_SECRET, { expiresIn: '24h' });
   res.json({ success: true, token, user: { username, name } });
+});
+
+// User login - supports demo users and stored users
+app.post('/api/auth/login', (req, res) => {
+  const { username, password } = req.body || {};
+  if (!username || !password) return res.status(400).json({ error: 'username and password required' });
+  const db = loadDB();
+
+  // Try direct username match first
+  let user = db.users[username] || DEMO_USERS[username];
+  // If identifier is an email, try to find by email
+  if (!user && username.includes('@')) {
+    const identLower = username.toLowerCase();
+    user = Object.values(db.users).find(u => u.email && u.email.toLowerCase() === identLower) || Object.values(DEMO_USERS).find(u => u.username && u.username.toLowerCase() === identLower);
+  }
+
+  if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+  // Password check (note: demo/stored passwords are plaintext in this demo)
+  if (!user.password || String(user.password) !== String(password)) return res.status(401).json({ error: 'Invalid credentials' });
+
+  const token = jwt.sign({ username: user.username || username }, JWT_SECRET, { expiresIn: '24h' });
+  // store token for logout support
+  const db2 = loadDB();
+  db2.tokens = db2.tokens || [];
+  db2.tokens.push({ token, username: user.username || username, issuedAt: new Date() });
+  saveDB(db2);
+
+  return res.json({ success: true, token, user: { username: user.username || username, name: user.name || user.username || username, email: user.email || null, isAdmin: !!user.isAdmin } });
 });
 
 app.post('/api/auth/logout', (req, res) => {

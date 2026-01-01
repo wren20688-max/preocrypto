@@ -1,4 +1,12 @@
 /* Payments App: handles payment methods interactions and PayHero flows */
+/* Auth check: require preo_user and preo_token before running payments app */
+try {
+  if (!(localStorage.getItem('preo_user') && localStorage.getItem('preo_token'))) {
+    localStorage.setItem('preo_next', location.pathname + location.search + location.hash);
+    location.replace('login.html');
+  }
+} catch(e) {}
+
 (function(){
   function showCopyToast(){
     const toast = document.getElementById('copyToast');
@@ -302,7 +310,7 @@
       // Try Netlify function for STK push
         try {
           const useLocalBackend = (new URLSearchParams(window.location.search).get('useLocalBackend') === '1') && (location.hostname === '127.0.0.1' || location.hostname === 'localhost') && location.port === '5500';
-          const stkUrl = useLocalBackend ? 'http://localhost:5000/api/payment/intent' : '/.netlify/functions/stk-push';
+          const stkUrl = useLocalBackend ? 'http://localhost:5000/api/payment/intent' : '/api/payment/intent';
           const resp = await fetch(stkUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -321,7 +329,7 @@
       // Fallback to hosted checkout via Netlify function
         try {
         const useLocalBackend = (new URLSearchParams(window.location.search).get('useLocalBackend') === '1') && (location.hostname === '127.0.0.1' || location.hostname === 'localhost') && location.port === '5500';
-        const createUrl = useLocalBackend ? 'http://localhost:5000/api/payhero/create-payment' : '/.netlify/functions/create-payment';
+        const createUrl = useLocalBackend ? 'http://localhost:5000/api/payhero/create-payment' : '/api/payhero/create-payment';
         const resp = await fetch(createUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

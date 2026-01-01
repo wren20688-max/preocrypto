@@ -13,7 +13,7 @@ const PayHeroConfig = {
   PUBLIC_KEY: '',
   SECRET_KEY: '',
   API_URL: 'https://api.payhero.io/v1',
-  WEBHOOK_URL: (typeof window !== 'undefined' && window.location ? (window.location.origin.replace(/\/$/, '') + '/.netlify/functions/webhook-payhero') : 'https://your-site.netlify.app/.netlify/functions/webhook-payhero'),
+  WEBHOOK_URL: (typeof window !== 'undefined' && window.location ? (window.location.origin.replace(/\/$/, '') + '/webhook/mpesa-callback') : 'https://your-site.netlify.app/webhook/mpesa-callback'),
   ACCOUNT_ID: null,
   
   // Payment method mappings for PayHero

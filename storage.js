@@ -10,25 +10,7 @@ const storage = {
     if (user) {
       return JSON.parse(user);
     }
-    
-    // If no current session, try to recover from last login
-    const lastLogin = localStorage.getItem('preo_last_login');
-    if (lastLogin) {
-      const users = JSON.parse(localStorage.getItem('users') || '[]');
-      const found = users.find(u => u.email && u.email.toLowerCase() === lastLogin.toLowerCase());
-      if (found) {
-        // Restore session
-        const userData = {
-          username: found.username || found.email,
-          email: found.email,
-          timestamp: new Date().getTime()
-        };
-        localStorage.setItem('preo_user', JSON.stringify(userData));
-        localStorage.setItem('preo_token', 'token_' + Date.now());
-        return userData;
-      }
-    }
-    
+    // Do not auto-restore sessions from stored users. Require explicit login/register.
     return null;
   },
 
@@ -46,7 +28,8 @@ const storage = {
   },
 
   isLoggedIn: function() {
-    return this.getUser() !== null;
+    // Require both a user object and a token to consider the session authenticated
+    return !!(this.getUser() && this.getToken());
   },
 
   // Token management
@@ -77,9 +60,14 @@ const storage = {
   },
 
   addTrade: function(trade) {
+    if (!this.isLoggedIn()) {
+      console.warn('Attempted to save trade while not authenticated; ignoring.');
+      return false;
+    }
     const trades = this.getTrades();
     trades.unshift(trade);
     localStorage.setItem('preo_trades', JSON.stringify(trades.slice(0, 100))); // Keep last 100
+    return true;
   },
 
   // Positions
@@ -99,9 +87,14 @@ const storage = {
   },
 
   addTransaction: function(transaction) {
+    if (!this.isLoggedIn()) {
+      console.warn('Attempted to save transaction while not authenticated; ignoring.');
+      return false;
+    }
     const transactions = this.getTransactions();
     transactions.unshift(transaction);
     localStorage.setItem('preo_transactions', JSON.stringify(transactions.slice(0, 200)));
+    return true;
   },
 
   // Clear all data (logout)

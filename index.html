@@ -4,7 +4,45 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PreoCrypto - Professional Forex & Crypto Trading Platform</title>
+  <!-- Favicon & Social preview -->
+  <link rel="icon" href="/logo.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/logo.svg">
+  <meta name="theme-color" content="#0055ff">
+  <meta name="description" content="PreoCrypto - professional forex and crypto trading platform. Secure accounts, fast deposits, M-Pesa support.">
+  <meta property="og:title" content="PreoCrypto - Professional Forex & Crypto Trading" />
+  <meta property="og:description" content="Trade forex and crypto with demo and real accounts, M-Pesa deposits, and admin tools." />
+  <meta property="og:image" content="/logo.svg" />
+  <meta property="og:site_name" content="PreoCrypto" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="PreoCrypto - Professional Forex & Crypto Trading" />
+  <meta name="twitter:description" content="Trade forex and crypto with demo and real accounts, M-Pesa deposits, and admin tools." />
+  <meta name="twitter:image" content="/logo.svg" />
   <link rel="stylesheet" href="style.css">
+  <script>
+    // Emit JSON-LD dynamically so it uses the actual site origin when deployed
+    (function(){
+      try {
+        const origin = (window.location && window.location.origin) ? window.location.origin : 'https://your-site.netlify.app';
+        const ld = {
+          "@context": "https://schema.org",
+          "@type": "Organization",
+          "name": "PreoCrypto",
+          "url": origin,
+          "logo": origin + '/logo.svg',
+          "sameAs": []
+        };
+        const s = document.createElement('script');
+        s.type = 'application/ld+json';
+        s.text = JSON.stringify(ld);
+        document.head.appendChild(s);
+      } catch(e){}
+    })();
+  </script>
+
+  <!-- Fallback favicons: prefer SVG, but provide an ICO path and an inline SVG data URI for environments that need it -->
+  <link rel="icon" href="/favicon.ico" sizes="16x16" />
+  <link rel="icon" href="/logo.svg" type="image/svg+xml">
+  <link rel="icon" href='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%230055ff"/><stop offset="100%" stop-color="%2300d4ff"/></linearGradient></defs><circle cx="100" cy="100" r="95" fill="none" stroke="url(%23g)" stroke-width="2" opacity="0.3"/><path d="M100 30 L150 60 L150 130 L100 160 L50 130 L50 60 Z" fill="url(%23g)" opacity="0.1" stroke="url(%23g)" stroke-width="1.5"/></svg>'>
   <style>
     * {
       margin: 0;
@@ -221,7 +259,7 @@
       gap: 30px;
       margin-top: 80px;
       padding-top: 60px;
-      border-top: 1px solid rgba(0, 212, 255, 0.1);
+      border-top: 1px solid rgba(104, 190, 207, 0.1);
     }
 
     .stat-item {
@@ -1752,9 +1790,25 @@
     // Video Modal Functions
     function openVideoModal() {
       const videoModal = document.getElementById('videoModal');
+      const video = document.querySelector('#videoModal video');
+      const source = video ? video.querySelector('source') : null;
+      if (source) {
+        const stored = window.localStorage && (window.localStorage.demo_video_url || window.localStorage.demo_video_url === '') ? window.localStorage.demo_video_url : null;
+        if (stored) source.src = stored;
+      }
       if (videoModal) {
         videoModal.style.display = 'flex';
         document.body.style.overflow = 'hidden';
+      }
+      if (video) {
+        try {
+          video.load();
+          video.play().catch(() => {
+            // Autoplay blocked — let user click play
+          });
+        } catch (e) {
+          // ignore
+        }
       }
     }
 
@@ -1764,7 +1818,9 @@
         videoModal.style.display = 'none';
         document.body.style.overflow = 'auto';
         const video = document.querySelector('#videoModal video');
-        if (video) video.pause();
+        if (video) {
+          try { video.pause(); video.currentTime = 0; } catch(e) {}
+        }
       }
     }
 

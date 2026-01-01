@@ -104,6 +104,7 @@
       '/api/payment/withdrawal': '/.netlify/functions/payment-withdrawal',
       '/api/payment/intent': '/.netlify/functions/payhero-create-intent',
       '/webhook/payhero': '/.netlify/functions/webhook-payhero',
+      '/webhook/mpesa-callback': '/.netlify/functions/mpesa-callback',
       '/api/admin/self-test': '/.netlify/functions/admin-self-test',
       '/api/health': '/.netlify/functions/health',
       '/api/admin/reset-users': '/.netlify/functions/admin-reset-users',
@@ -123,6 +124,11 @@
       if (remote) tryBases.push(remote);
       // Then current configured base
       tryBases.push(window.API_BASE || '');
+      // Also include common localhost API fallbacks (ports 5000 and 3000)
+      tryBases.push('http://localhost:5000');
+      tryBases.push('http://127.0.0.1:5000');
+      tryBases.push('http://localhost:3000');
+      tryBases.push('http://127.0.0.1:3000');
       // Finally, raw path as fallback
       tryBases.push('');
 

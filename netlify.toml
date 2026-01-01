@@ -43,6 +43,11 @@
   status = 200
 
 [[redirects]]
+  from = "/webhook/mpesa-callback"
+  to = "/.netlify/functions/mpesa-callback"
+  status = 200
+
+[[redirects]]
   from = "/api/payment/intent"
   to = "/.netlify/functions/payhero-create-intent"
   status = 200
