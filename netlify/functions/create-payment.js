@@ -1,5 +1,3 @@
-const fetch = global.fetch || require('node-fetch');
-
 function tryParseJson(text) {
   try { return JSON.parse(text); } catch { return null; }
 }
