@@ -145,9 +145,25 @@ async function handleMpesaDeposit(e) {
       })
     });
 
-    const result = await response.json();
+    // Check if response is ok
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('API Error:', errorText);
+      throw new Error(`API Error (${response.status}): ${errorText.substring(0, 100)}`);
+    }
 
-    if (response.ok && result.success) {
+    // Try to parse JSON
+    let result;
+    try {
+      const text = await response.text();
+      console.log('API Response:', text);
+      result = JSON.parse(text);
+    } catch (parseError) {
+      console.error('JSON Parse Error:', parseError);
+      throw new Error('Invalid response from payment server. Please try again.');
+    }
+
+    if (result.success) {
       // Create pending transaction
       const transaction = {
         id: 'dep_' + Date.now(),
