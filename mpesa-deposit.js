@@ -3,10 +3,9 @@
 // Simple M-Pesa STK Push integration with PayHero
 // ============================================================================
 
-// PayHero Credentials - CONFIGURED
+// PayHero Configuration - Credentials stored securely in Netlify environment variables
 const PAYHERO_CONFIG = {
-  SECRET_KEY: 'SjRoaG1EeDlNQ1FlcTZtY2VScVQ6dFF0TjFQQ2J2MW83RWxaRnZJQ2xrOWp2Y2Nob3dIRlVpaEFNWjg3Ng==',
-  ACCOUNT_ID: '3869',
+  // Secret key is NOT exposed - handled by backend Netlify function
   API_URL: 'https://api.payhero.io/v1',
   WEBHOOK_URL: window.location.origin + '/webhook/payhero'
 };
