@@ -664,6 +664,15 @@
       }
       const countryCode = countryFromLocation(userData.location);
 
+      // Show loading state
+      const submitBtn = document.querySelector('.btn-submit');
+      const originalText = submitBtn ? submitBtn.textContent : '';
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Creating Account...';
+      }
+
+      // Try backend first, fall back to local demo mode if unavailable
       (window.apiFetch || fetch)('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -677,6 +686,11 @@
         return res.json();
       })
       .then(data => {
+        // Reset button state
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = originalText;
+        }
         // After successful registration, redirect user to login page (do not auto-login)
         try {
           // Save the signup email so login can be prefixed
@@ -709,9 +723,60 @@
         setTimeout(() => { window.location.href = 'login.html'; }, 1200);
       })
       .catch(err => {
-        showError(5, err.message);
-        const debug = document.getElementById('signupDebug');
-        if (debug) debug.textContent = 'Signup error: ' + err.message;
+        // Reset button state
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = originalText;
+        }
+        
+        const errorMsg = err.message || 'Registration failed';
+        const isNetworkError = errorMsg.includes('Failed to fetch') || errorMsg.includes('Network error') || errorMsg.includes('NetworkError');
+        
+        if (isNetworkError) {
+          // Backend unavailable - use LOCAL DEMO MODE
+          console.warn('Backend unavailable, using local demo mode');
+          
+          try {
+            // Check if user already exists locally
+            const users = JSON.parse(localStorage.getItem('users') || '[]');
+            const emailExists = users.some(u => (u.email || '').toLowerCase() === (userData.email || '').toLowerCase());
+            const usernameExists = users.some(u => u.username === userData.username);
+            
+            if (emailExists || usernameExists) {
+              showError(5, 'User already exists');
+              return;
+            }
+            
+            // Create local account
+            users.push(userData);
+            localStorage.setItem('users', JSON.stringify(users));
+            
+            // Create demo account balance
+            const demoAccounts = JSON.parse(localStorage.getItem('demo_accounts') || '{}');
+            demoAccounts[userData.username] = { balance: 10000, created: Date.now() };
+            localStorage.setItem('demo_accounts', JSON.stringify(demoAccounts));
+            
+            // Create a demo token (for local demo only)
+            const demoToken = 'demo_' + btoa(userData.username + ':' + Date.now());
+            localStorage.setItem('preo_token', demoToken);
+            localStorage.setItem('preo_saved_user', userData.email || userData.username);
+            localStorage.setItem('preo_remember_me', 'true');
+            
+            // Show success
+            document.getElementById('signupForm').style.display = 'none';
+            document.getElementById('successScreen').classList.add('show');
+            const msg = document.getElementById('autoRedirectMsg');
+            if (msg) msg.textContent = '✅ Local demo account created! Redirecting to login...';
+            
+            setTimeout(() => { window.location.href = 'login.html'; }, 1500);
+          } catch(e) {
+            showError(5, 'Failed to create local account: ' + e.message);
+          }
+        } else {
+          showError(5, errorMsg);
+          const debug = document.getElementById('signupDebug');
+          if (debug) debug.textContent = 'Signup error: ' + errorMsg;
+        }
       });
     });
 

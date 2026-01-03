@@ -359,6 +359,14 @@
 
       if (!ident || !pwd) { alert('Please enter your credentials'); return; }
 
+      // Show loading state
+      const loginBtn = document.querySelector('button[type="submit"]');
+      const originalBtnText = loginBtn ? loginBtn.textContent : '';
+      if (loginBtn) {
+        loginBtn.disabled = true;
+        loginBtn.textContent = 'Logging in...';
+      }
+
       (window.apiFetch || fetch)('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -388,10 +396,18 @@
         window.location.href = user.isAdmin ? 'admin.html' : 'dashboard.html';
       })
       .catch(async err => {
+        // Reset button state
+        if (loginBtn) {
+          loginBtn.disabled = false;
+          loginBtn.textContent = originalBtnText;
+        }
+
         const msg = String(err && err.message || 'Login failed');
         const parts = msg.startsWith('API_ERROR:') ? msg.split(':') : [];
         const status = parts.length >= 3 ? parseInt(parts[1],10) : 0;
         const reason = parts.length >= 3 ? parts.slice(2).join(':') : msg;
+        const isNetworkError = msg.includes('Failed to fetch') || msg.includes('Network error') || msg.includes('NetworkError');
+        
         const remoteOrigin = (window.appConfig && (window.appConfig.apiOrigin||window.appConfig.baseUrl)) || '';
         // Try fallback endpoints (netlify function on remote, then local ports)
         const fallbacks = [];
@@ -418,7 +434,49 @@
             lastErr = e2 && e2.message ? e2.message : String(e2);
           }
         }
-        alert('❌ Login failed: ' + lastErr);
+        
+        if (isNetworkError || lastErr.includes('Failed to fetch')) {
+          // Backend unavailable - try LOCAL DEMO MODE
+          console.warn('Backend unavailable, trying local demo mode');
+          
+          try {
+            // Check localStorage for users
+            const users = JSON.parse(localStorage.getItem('users') || '[]');
+            let user = users.find(u => u.username === ident || (u.email && u.email.toLowerCase() === ident.toLowerCase()));
+            
+            if (!user) {
+              alert('❌ No local account found.\n\nCreate an account first, or install Node.js and run: netlify dev');
+              return;
+            }
+            
+            // Check password
+            if (user.password !== pwd) {
+              alert('❌ Invalid password');
+              return;
+            }
+            
+            // Create demo token and login
+            const demoToken = 'demo_' + btoa(user.username + ':' + Date.now());
+            localStorage.setItem('preo_token', demoToken);
+            localStorage.setItem('preo_user', JSON.stringify({ 
+              username: user.name || user.username, 
+              email: user.email || '', 
+              role: user.isAdmin ? 'admin' : 'trader' 
+            }));
+            
+            if (rememberMe) {
+              localStorage.setItem('preo_saved_user', ident);
+              localStorage.setItem('preo_remember_me', 'true');
+            }
+            
+            window.location.href = user.isAdmin ? 'admin.html' : 'dashboard.html';
+            return;
+          } catch (localErr) {
+            alert('⚠️ Backend server not running\n\nPlease start the server to login.\n\nAfter installing Node.js, run: netlify dev');
+          }
+        } else {
+          alert('❌ Login failed: ' + lastErr);
+        }
       });
     });
 
