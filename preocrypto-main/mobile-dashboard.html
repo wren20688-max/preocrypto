@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Dashboard — Mobile | PreoTrade FX</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    /* Mobile-first dashboard inspired by modern fintech wallets */
+    body { background: linear-gradient(180deg, #0f1419 0%, #151b26 100%); }
+    .md-container { max-width: 520px; margin: 0 auto; padding-bottom: 84px; }
+    .md-header { padding: 16px 16px 0; display:flex; align-items:center; justify-content:space-between; }
+    .md-hello { font-size:13px; color: var(--text-tertiary); }
+    .md-user { display:flex; align-items:center; gap:10px; }
+    .md-avatar { width:36px; height:36px; border-radius:50%; border:2px solid var(--secondary); }
+    .md-balance { margin: 12px 16px; padding: 18px; border-radius: 16px; background: linear-gradient(135deg, var(--primary), var(--secondary)); box-shadow: var(--shadow-lg); }
+    .md-balance small { color: rgba(255,255,255,0.9); text-transform: uppercase; letter-spacing: .5px; }
+    .md-balance .amt { font-size: 32px; font-weight: 800; margin-top: 6px; }
+    .md-balance .sub { opacity:.9; font-size:12px; margin-top:6px; }
+    .md-actions { margin: 16px; display:grid; grid-template-columns: repeat(4,1fr); gap: 10px; }
+    .md-action { background: var(--bg-secondary); border:1px solid var(--border-color); border-radius:12px; padding:10px 6px; text-align:center; font-size:12px; color: var(--text-secondary); }
+    .md-action .ico { display:block; font-size:18px; margin-bottom:6px; }
+    .md-card { margin: 0 16px 12px; background: radial-gradient(120% 120% at 100% 0, rgba(0,212,255,0.18), transparent 60%), var(--bg-secondary); border:1px solid var(--border-color); border-radius:16px; padding:14px; }
+    .md-card .row { display:flex; justify-content:space-between; align-items:center; }
+    .md-card .label { font-size:12px; color: var(--text-tertiary); }
+    .md-card .value { font-size:16px; font-weight:700; color: var(--text-primary); }
+    .md-spark { margin: 6px -4px 0; height: 64px; }
+    .md-section { margin: 16px; }
+    .md-section h3 { font-size: 14px; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .6px; }
+    .tx { display:flex; align-items:center; justify-content:space-between; padding: 12px 10px; border-radius:12px; background: var(--bg-secondary); border:1px solid var(--border-color); margin-bottom: 8px; }
+    .tx .l { display:flex; align-items:center; gap:10px; }
+    .tx .ico { width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; background: var(--bg-tertiary); }
+    .tx .name { font-weight:600; }
+    .tx .meta { font-size:12px; color: var(--text-tertiary); }
+    .tx .amt { font-weight:700; }
+    .amt.pos { color: var(--success); }
+    .amt.neg { color: var(--danger); }
+    .md-bottom-nav { position: fixed; left:0; right:0; bottom:0; background: var(--bg-secondary); border-top:1px solid var(--border-color); display:flex; justify-content:space-around; padding:10px 8px calc(10px + env(safe-area-inset-bottom)); z-index:10; }
+    .md-bottom-nav a { color: var(--text-secondary); text-decoration:none; font-size:11px; display:flex; flex-direction:column; align-items:center; gap:4px; padding:6px 10px; border-radius:10px; }
+    .md-bottom-nav a.active { color: var(--secondary); background: rgba(0,212,255,0.08); }
+    .ai-banner { margin: 16px; padding: 12px; border-radius: 12px; background: rgba(0,212,255,0.12); border: 1px solid var(--secondary); display:none; }
+    .ai-banner strong { color: var(--secondary); }
+    @media (min-width: 769px) { .md-container { max-width: 560px; } }
+  </style>
+</head>
+<body>
+  <div class="md-container">
+    <div class="md-header">
+      <div>
+        <div class="md-hello">Welcome back</div>
+        <div style="font-size:18px; font-weight:700;">PreoTrade FX</div>
+      </div>
+      <div class="md-user">
+        <button onclick="toggleTheme()" class="btn btn-outline btn-small" title="Theme">🌓</button>
+        <img id="mdAvatar" class="md-avatar" src="https://ui-avatars.com/api/?name=You&background=0055ff&color=fff" alt="avatar">
+      </div>
+    </div>
+
+    <section class="md-balance">
+      <small>Total Balance</small>
+      <div id="mdBalance" class="amt">$10,000.00</div>
+      <div class="sub" id="mdSub">Demo Wallet • USD</div>
+    </section>
+
+    <section class="md-actions">
+      <a class="md-action" href="finances.html"><span class="ico">➕</span>Add Money</a>
+      <a class="md-action" href="transactions.html"><span class="ico">📤</span>Send</a>
+      <a class="md-action" href="transactions.html"><span class="ico">📥</span>Request</a>
+      <a class="md-action" href="payment-methods.html"><span class="ico">🧾</span>Pay Bills</a>
+    </section>
+
+    <section class="md-card">
+      <div class="row">
+        <div>
+          <div class="label">This Week</div>
+          <div class="value" id="mdWeekPnL">+$245.18</div>
+        </div>
+        <a class="btn btn-outline btn-small" href="dashboard.html">Full Trading</a>
+      </div>
+      <canvas id="spark" class="md-spark"></canvas>
+    </section>
+
+    <div id="aiBanner" class="ai-banner">
+      <div><strong>Claude Sonnet 4.5</strong> is enabled for all clients. Try the AI assistant for smarter insights.</div>
+      <div style="margin-top:8px; display:flex; gap:8px;">
+        <a href="#" class="btn btn-secondary btn-small" onclick="alert('AI Assistant coming soon');return false;">Open Assistant</a>
+        <a href="profile.html" class="btn btn-outline btn-small">Manage</a>
+      </div>
+    </div>
+
+    <section class="md-section">
+      <h3>Recent Activity</h3>
+      <div id="txList">
+        <!-- Transactions populated by JS -->
+      </div>
+    </section>
+  </div>
+
+  <nav class="md-bottom-nav">
+    <a href="mobile-dashboard.html" class="active">🏠 Home</a>
+    <a href="transactions.html">📄 Activity</a>
+    <a href="payment-methods.html">💳 Cards</a>
+    <a href="profile.html">⚙️ Settings</a>
+  </nav>
+
+  <script src="config.js"></script>
+  <script src="storage.js"></script>
+  <script>
+    // Load user, balance, and transactions for a compact mobile view
+    const user = storage.getUser();
+    if (!user) { window.location.href = 'index.html'; }
+
+    // Greeting/avatar
+    document.getElementById('mdAvatar').src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.username||'You')}&background=0055ff&color=fff`;
+
+    // Balance
+    const bal = parseFloat(localStorage.getItem('balance') || '10000');
+    document.getElementById('mdBalance').textContent = bal.toLocaleString('en-US',{style:'currency',currency:'USD'});
+
+    // Feature flag banner
+    if (window.featureFlags?.get('claudeSonnet45')) {
+      document.getElementById('aiBanner').style.display = 'block';
+    }
+
+    // Transactions
+    const txRoot = document.getElementById('txList');
+    const tx = storage.getTransactions().slice(0,8);
+    if (tx.length === 0) {
+      txRoot.innerHTML = '<div class="tx"><div class="l"><div class="ico">🕘</div><div><div class="name">No activity yet</div><div class="meta">Your latest actions will appear here</div></div></div><div class="amt">—</div></div>';
+    } else {
+      txRoot.innerHTML = '';
+      tx.forEach(t => {
+        const amt = (t.amount || 0);
+        const sign = amt >= 0 ? '+' : '-';
+        const cls = amt >= 0 ? 'pos' : 'neg';
+        const name = t.title || t.type || 'Transaction';
+        const when = new Date(t.timestamp || Date.now()).toLocaleString();
+        const el = document.createElement('div');
+        el.className = 'tx';
+        el.innerHTML = `<div class="l"><div class="ico">${amt>=0?'💰':'💸'}</div><div><div class="name">${name}</div><div class="meta">${when}</div></div></div><div class="amt ${cls}">${sign}$${Math.abs(amt).toFixed(2)}</div>`;
+        txRoot.appendChild(el);
+      });
+    }
+
+    // Mini sparkline without external libs
+    (function spark() {
+      const c = document.getElementById('spark');
+      const dpr = window.devicePixelRatio || 1;
+      const w = c.clientWidth || c.offsetWidth || 300;
+      const h = c.clientHeight || 64;
+      c.width = Math.floor(w * dpr);
+      c.height = Math.floor(h * dpr);
+      const ctx = c.getContext('2d');
+      ctx.scale(dpr, dpr);
+      // Generate pseudo P&L series
+      const n = 40; let base = 100; const pts = [];
+      for (let i=0;i<n;i++){ base += (Math.random()-0.4)*3; pts.push(base); }
+      const min = Math.min(...pts), max = Math.max(...pts);
+      const pad = 6; const xStep = (w - pad*2) / (n - 1);
+      ctx.lineWidth = 2; ctx.lineJoin = 'round';
+      // Fill gradient area
+      const grad = ctx.createLinearGradient(0,0,0,h);
+      grad.addColorStop(0,'rgba(0,212,255,0.35)');
+      grad.addColorStop(1,'rgba(0,212,255,0.02)');
+      ctx.beginPath();
+      pts.forEach((v,i)=>{
+        const x = pad + i*xStep;
+        const y = h - pad - ((v - min) / (max - min + 0.0001)) * (h - pad*2);
+        if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      });
+      const lastX = pad + (n-1)*xStep; const lastY = h - pad - ((pts[n-1]-min)/(max-min+0.0001))*(h-pad*2);
+      ctx.lineTo(lastX, h - pad);
+      ctx.lineTo(pad, h - pad);
+      ctx.closePath();
+      ctx.fillStyle = grad; ctx.fill();
+      // Stroke line
+      ctx.beginPath();
+      pts.forEach((v,i)=>{
+        const x = pad + i*xStep;
+        const y = h - pad - ((v - min) / (max - min + 0.0001)) * (h - pad*2);
+        if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      });
+      ctx.strokeStyle = '#00d4ff'; ctx.stroke();
+    })();
+
+    // Theme toggle synced with existing app
+    function toggleTheme(){
+      document.body.classList.toggle('light-mode');
+      localStorage.setItem('theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
+    }
+    window.toggleTheme = toggleTheme;
+
+    // Restore theme
+    if (localStorage.getItem('theme') === 'light') {
+      document.body.classList.add('light-mode');
+    }
+  </script>
+</body>
+</html>

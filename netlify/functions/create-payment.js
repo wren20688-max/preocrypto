@@ -90,4 +90,3 @@ exports.handler = async (event) => {
     return { statusCode: 500, headers, body: JSON.stringify({ success: false, error: err.message, logs }) };
   }
 };
-};
