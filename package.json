@@ -1,0 +1,23 @@
+{
+  "name": "preocrypto-admin",
+  "version": "1.0.0",
+  "description": "PreoCrypto Admin Backend",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.3",
+    "@supabase/supabase-js": "^2.44.4",
+    "bcryptjs": "^2.4.3",
+    "node-fetch": "^2.7.0",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}

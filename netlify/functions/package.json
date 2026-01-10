@@ -1,0 +1,9 @@
+{
+  "name": "netlify-functions",
+  "version": "1.0.0",
+  "dependencies": {
+    "jsonwebtoken": "^9.0.3",
+    "@supabase/supabase-js": "^2.44.4",
+    "node-fetch": "^2.6.7"
+  }
+}

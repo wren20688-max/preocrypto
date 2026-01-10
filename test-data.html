@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Data Display</title>
+    <style>
+        body { background: #0a0e27; color: #fff; font-family: Arial; padding: 20px; }
+        .pair { padding: 10px; margin: 5px; background: #1a1e3d; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h1>Testing Market Data</h1>
+    <div id="output"></div>
+    
+    <script src="config.js"></script>
+    <script src="storage.js"></script>
+    <script>
+        console.log('Test page loading...');
+        
+        // Check if user is logged in
+        const user = localStorage.getItem('preo_user');
+        console.log('User:', user);
+        
+        // Define market data
+        const MARKET_DATA = {
+            forex: [
+                { symbol: 'EUR/USD', bid: 1.0945, ask: 1.0946, change: 0.12, pair: 'EURUSD' },
+                { symbol: 'GBP/USD', bid: 1.2638, ask: 1.2639, change: -0.15, pair: 'GBPUSD' },
+                { symbol: 'USD/JPY', bid: 149.48, ask: 149.49, change: 0.08, pair: 'USDJPY' }
+            ]
+        };
+        
+        console.log('MARKET_DATA:', MARKET_DATA);
+        console.log('Forex count:', MARKET_DATA.forex.length);
+        
+        // Try to render
+        const output = document.getElementById('output');
+        let html = '<h2>Forex Pairs:</h2>';
+        
+        MARKET_DATA.forex.forEach(item => {
+            html += `<div class="pair">${item.symbol} - ${item.ask.toFixed(4)}</div>`;
+        });
+        
+        output.innerHTML = html;
+        console.log('✓ Data rendered successfully!');
+    </script>
+</body>
+</html>

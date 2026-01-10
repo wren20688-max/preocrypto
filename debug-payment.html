@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Payment Debug</title>
+</head>
+<body>
+  <h1>Payment API Debug</h1>
+  <button onclick="testPayment()">Test Payment API</button>
+  <pre id="output"></pre>
+
+  <script src="config.js"></script>
+  <script>
+    async function testPayment() {
+      const output = document.getElementById('output');
+      output.textContent = 'Testing...\n';
+      
+      // Test 1: Direct fetch
+      output.textContent += '\n=== Test 1: Direct Fetch ===\n';
+      output.textContent += 'URL: /api/payment/intent\n';
+      try {
+        const res1 = await fetch('/api/payment/intent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amount: 40, phone: '+254741114162' })
+        });
+        output.textContent += `Status: ${res1.status}\n`;
+        const data1 = await res1.text();
+        output.textContent += `Response: ${data1.substring(0, 200)}\n`;
+      } catch (e) {
+        output.textContent += `Error: ${e.message}\n`;
+      }
+
+      // Test 2: With apiFetch
+      output.textContent += '\n=== Test 2: Using apiFetch ===\n';
+      output.textContent += 'URL: /api/payment/intent\n';
+      try {
+        const res2 = await window.apiFetch('/api/payment/intent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amount: 40, phone: '+254741114162' })
+        });
+        output.textContent += `Status: ${res2.status}\n`;
+        const data2 = await res2.text();
+        output.textContent += `Response: ${data2.substring(0, 200)}\n`;
+      } catch (e) {
+        output.textContent += `Error: ${e.message}\n`;
+      }
+
+      // Test 3: Direct to Netlify function
+      output.textContent += '\n=== Test 3: Direct to Netlify Function ===\n';
+      output.textContent += 'URL: /.netlify/functions/stk-push\n';
+      try {
+        const res3 = await fetch('/.netlify/functions/stk-push', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amount: 40, phone: '+254741114162' })
+        });
+        output.textContent += `Status: ${res3.status}\n`;
+        const data3 = await res3.text();
+        output.textContent += `Response: ${data3.substring(0, 500)}\n`;
+      } catch (e) {
+        output.textContent += `Error: ${e.message}\n`;
+      }
+
+      // Show config
+      output.textContent += '\n=== Configuration ===\n';
+      output.textContent += `API_BASE: ${window.API_BASE}\n`;
+      output.textContent += `localStorage preo_api_base: ${localStorage.getItem('preo_api_base')}\n`;
+      output.textContent += `Location: ${window.location.href}\n`;
+    }
+  </script>
+</body>
+</html>

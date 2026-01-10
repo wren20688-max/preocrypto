@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - Step 1: Data Display</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top-nav">
+    <div class="nav-left">
+      <h1>PreoCrypto - Test</h1>
+    </div>
+    <div class="nav-right">
+      <span id="username">User</span>
+      <button onclick="localStorage.clear(); location.href='login.html'">Logout</button>
+    </div>
+  </header>
+
+  <div class="dashboard-container">
+    <main class="main-content">
+      
+      <!-- Forex Pairs -->
+      <section class="market-section">
+        <h2>Forex Pairs</h2>
+        <div class="market-table">
+          <div class="table-header">
+            <div class="col-pair">PAIR</div>
+            <div class="col-price">PRICE</div>
+            <div class="col-change">CHANGE</div>
+            <div class="col-action">ACTION</div>
+          </div>
+          <div id="forexList"></div>
+        </div>
+      </section>
+
+      <!-- Cryptos -->
+      <section class="market-section">
+        <h2>Cryptos</h2>
+        <div class="market-table">
+          <div class="table-header">
+            <div class="col-pair">ASSET</div>
+            <div class="col-price">PRICE</div>
+            <div class="col-change">24H</div>
+            <div class="col-action">TRADE</div>
+          </div>
+          <div id="cryptoList"></div>
+        </div>
+      </section>
+
+      <!-- Indices -->
+      <section class="market-section">
+        <h2>Indices</h2>
+        <div class="market-table">
+          <div class="table-header">
+            <div class="col-pair">INDEX</div>
+            <div class="col-price">PRICE</div>
+            <div class="col-change">CHANGE</div>
+            <div class="col-action">TRADE</div>
+          </div>
+          <div id="indicesList"></div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script>
+    console.log('=== STEP 1: SIMPLE DATA DISPLAY TEST ===');
+    
+    // Market data
+    const MARKET_DATA = {
+      forex: [
+        { symbol: 'EUR/USD', bid: 1.0945, ask: 1.0946, change: 0.12 },
+        { symbol: 'GBP/USD', bid: 1.2638, ask: 1.2639, change: -0.15 },
+        { symbol: 'USD/JPY', bid: 149.48, ask: 149.49, change: 0.08 },
+        { symbol: 'AUD/USD', bid: 0.6648, ask: 0.6649, change: 0.22 },
+        { symbol: 'USD/CAD', bid: 1.3527, ask: 1.3528, change: 0.05 }
+      ],
+      crypto: [
+        { symbol: 'Bitcoin', price: 45230, change24h: 2.34, cap: '884B' },
+        { symbol: 'Ethereum', price: 2450, change24h: 1.82, cap: '294B' },
+        { symbol: 'XRP', price: 2.85, change24h: 0.45, cap: '155B' }
+      ],
+      indices: [
+        { symbol: 'US30', price: 42567.45, change: 0.35 },
+        { symbol: 'US500', price: 5847.23, change: 0.28 },
+        { symbol: 'NAS100', price: 16834.56, change: 0.52 }
+      ]
+    };
+
+    console.log('Data loaded:', MARKET_DATA);
+
+    // Render Forex
+    function renderForex() {
+      console.log('Rendering forex...');
+      const container = document.getElementById('forexList');
+      container.innerHTML = '';
+      
+      MARKET_DATA.forex.forEach(item => {
+        const changeClass = item.change >= 0 ? 'positive' : 'negative';
+        const row = document.createElement('div');
+        row.className = 'table-row';
+        row.innerHTML = `
+          <div class="col-pair">${item.symbol}</div>
+          <div class="col-price">${item.ask.toFixed(4)}</div>
+          <div class="col-change ${changeClass}">${item.change >= 0 ? '+' : ''}${item.change.toFixed(2)}%</div>
+          <div class="col-action"><button class="btn btn-primary btn-small">Trade</button></div>
+        `;
+        container.appendChild(row);
+      });
+      console.log('✓ Forex rendered:', MARKET_DATA.forex.length, 'pairs');
+    }
+
+    // Render Crypto
+    function renderCrypto() {
+      console.log('Rendering crypto...');
+      const container = document.getElementById('cryptoList');
+      container.innerHTML = '';
+      
+      MARKET_DATA.crypto.forEach(item => {
+        const changeClass = item.change24h >= 0 ? 'positive' : 'negative';
+        const row = document.createElement('div');
+        row.className = 'table-row';
+        row.innerHTML = `
+          <div class="col-pair">${item.symbol}</div>
+          <div class="col-price">$${item.price.toLocaleString()}</div>
+          <div class="col-change ${changeClass}">${item.change24h >= 0 ? '+' : ''}${item.change24h.toFixed(2)}%</div>
+          <div class="col-action"><button class="btn btn-primary btn-small">Trade</button></div>
+        `;
+        container.appendChild(row);
+      });
+      console.log('✓ Crypto rendered:', MARKET_DATA.crypto.length, 'pairs');
+    }
+
+    // Render Indices
+    function renderIndices() {
+      console.log('Rendering indices...');
+      const container = document.getElementById('indicesList');
+      container.innerHTML = '';
+      
+      MARKET_DATA.indices.forEach(item => {
+        const changeClass = item.change >= 0 ? 'positive' : 'negative';
+        const row = document.createElement('div');
+        row.className = 'table-row';
+        row.innerHTML = `
+          <div class="col-pair">${item.symbol}</div>
+          <div class="col-price">${item.price.toLocaleString()}</div>
+          <div class="col-change ${changeClass}">${item.change >= 0 ? '+' : ''}${item.change.toFixed(2)}%</div>
+          <div class="col-action"><button class="btn btn-primary btn-small">Trade</button></div>
+        `;
+        container.appendChild(row);
+      });
+      console.log('✓ Indices rendered:', MARKET_DATA.indices.length, 'indices');
+    }
+
+    // Render everything
+    console.log('Starting render...');
+    renderForex();
+    renderCrypto();
+    renderIndices();
+    console.log('=== ALL DATA RENDERED SUCCESSFULLY ===');
+  </script>
+</body>
+</html>

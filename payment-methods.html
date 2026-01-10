@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Payment Methods — PreoCrypto</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="auth-guard.js"></script>
+</head>
+<body>
+  <!-- TOP NAVIGATION BAR -->
+  <header class="top-nav">
+    <div class="nav-left">
+      <button id="menuToggle" class="menu-toggle">☰</button>
+      <div class="logo" style="width: 32px; height: 32px; margin: 0 8px;">
+        <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="lg3" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#0055ff;stop-opacity:1" /><stop offset="100%" style="stop-color:#00d4ff;stop-opacity:1" /></linearGradient></defs><circle cx="100" cy="100" r="95" fill="none" stroke="url(#lg3)" stroke-width="2" opacity="0.3"/><path d="M 100 30 L 150 60 L 150 130 L 100 160 L 50 130 L 50 60 Z" fill="url(#lg3)" opacity="0.1"/><g><rect x="70" y="95" width="8" height="35" fill="#00d084" opacity="0.9"/><line x1="74" y1="85" x2="74" y2="135" stroke="#00d084" stroke-width="2"/><rect x="85" y="75" width="8" height="55" fill="#00d084" opacity="0.95"/><line x1="89" y1="65" x2="89" y2="135" stroke="#00d084" stroke-width="2"/><rect x="100" y="55" width="8" height="75" fill="#0055ff" opacity="1"/><line x1="104" y1="45" x2="104" y2="135" stroke="#0055ff" stroke-width="2"/><rect x="115" y="80" width="8" height="50" fill="#00d4ff" opacity="0.9"/><line x1="119" y1="70" x2="119" y2="135" stroke="#00d4ff" stroke-width="2"/></g></svg>
+      </div>
+      <h1>PreoCrypto</h1>
+    </div>
+    <div class="nav-center">
+      <span class="balance-display">Balance: <strong id="balance">$10,000.00</strong></span>
+    </div>
+    <div class="nav-right">
+      <button id="toggleMode" class="nav-btn">Theme</button>
+      <a href="index.html" class="nav-btn logout">Logout</a>
+    </div>
+  </header>
+
+  <!-- SIDE MENU -->
+  <nav id="sideMenu" class="side-menu">
+    <button class="menu-close">&times;</button>
+    <div class="menu-items">
+      <a href="dashboard.html" class="menu-item">Dashboard</a>
+      <a href="auto-trading.html" class="menu-item">Auto Trading</a>
+      <a href="finances.html" class="menu-item">💰 Finances</a>
+      <a href="transactions.html" class="menu-item">📋 Transactions</a>
+      <a href="payment-methods.html" class="menu-item active">💳 Payment Methods</a>
+      <a href="profile.html" class="menu-item">👤 Profile</a>
+    </div>
+  </nav>
+
+  <main class="main-container page-container">
+    <!-- PAGE HEADER -->
+    <div class="page-header">
+      <h2>💳 Payment Methods</h2>
+      <p>Manage your deposit and withdrawal methods</p>
+    </div>
+
+    <!-- PAYMENT OPTIONS -->
+    <div class="payment-options">
+      <!-- M-Pesa with PayHero Integration -->
+      <section class="content-card payment-card">
+        <h3>📱 M-Pesa (Pay via PayHero)</h3>
+        <p>Enter M-Pesa number → Pay via PayHero in KSH</p>
+        <button class="action-btn" onclick="selectPaymentMethod('mpesa')">Select M-Pesa</button>
+      </section>
+
+      <!-- Bank Transfer -->
+      <section class="content-card payment-card">
+        <h3>🏦 Bank Transfer</h3>
+        <p>Wire transfer to our business account</p>
+        <button class="action-btn" onclick="selectPaymentMethod('bank')">Select Bank Transfer</button>
+      </section>
+
+      <!-- Crypto Options -->
+      <section class="content-card payment-card">
+        <h3>🔗 Cryptocurrency</h3>
+        <p>Pay with your preferred cryptocurrency</p>
+        <div class="crypto-grid">
+          <button class="action-btn small" onclick="selectPaymentMethod('usdt')">💲 USDT</button>
+          <button class="action-btn small" onclick="selectPaymentMethod('bitcoin')">₿ Bitcoin</button>
+          <button class="action-btn small" onclick="selectPaymentMethod('ethereum')">Ξ Ethereum</button>
+          <button class="action-btn small" onclick="selectPaymentMethod('tron')">⟡ Tron</button>
+        </div>
+      </section>
+    </div>
+
+    <!-- PAYMENT DETAILS -->
+    <div id="paymentDetails" class="content-card" style="display:none; margin-top:20px;">
+      <button class="action-btn outline" onclick="backToPaymentList()">← Back</button>
+      <h3 id="paymentDetailsTitle">Payment Method</h3>
+      
+      <!-- STK Push Modal for M-Pesa -->
+      <div id="stkPushModal" style="display:none; margin-top:20px; padding:20px; background:rgba(0,212,255,0.1); border:1px solid rgba(0,212,255,0.3); border-radius:12px;">
+        <div style="margin-bottom:20px;">
+          <h4 style="margin: 0 0 12px 0; color: var(--text-primary);">📱 STK Push - Enter Your Details</h4>
+          <p style="margin: 0; font-size:13px; color: var(--text-secondary);">A prompt will pop up on your phone to enter your M-Pesa PIN</p>
+        </div>
+        
+        <div style="display: grid; gap: 12px;">
+          <div>
+            <label style="display:block; font-size:12px; color:var(--text-tertiary); margin-bottom:6px; font-weight:600;">Phone Number</label>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="padding:12px 10px; background:var(--bg-tertiary); border:1px solid var(--border-color); border-radius:8px 0 0 8px; color:var(--text-secondary); font-size:14px; font-weight:600;">+254</span>
+              <input type="tel" id="mpesaPhone" placeholder="712345678" maxlength="9" pattern="[7][0-9]{8}" style="flex:1; padding:12px; border:1px solid var(--border-color); border-radius:0 8px 8px 0; background:var(--bg-secondary); color:var(--text-primary); font-size:14px;">
+            </div>
+            <small style="color:var(--text-tertiary); display:block; margin-top:4px;">Enter 9 digits starting with 7 (e.g., 712345678)</small>
+          </div>
+          
+          <div>
+            <label style="display:block; font-size:12px; color:var(--text-tertiary); margin-bottom:6px; font-weight:600;">Amount (USD)</label>
+            <input type="number" id="mpesaAmount" placeholder="100" min="10" step="0.01" style="width:100%; padding:12px; border:1px solid var(--border-color); border-radius:8px; background:var(--bg-secondary); color:var(--text-primary); font-size:14px;">
+            <small style="color:var(--text-tertiary); display:block; margin-top:4px;">Minimum: $10</small>
+          </div>
+          
+          <button class="action-btn" onclick="initiateStkPush()" style="margin-top:8px;">
+            <span style="display:inline-block; margin-right:8px;">📲</span> Send STK Push
+          </button>
+          
+          <!-- STK Response -->
+          <div id="stkResponse" style="display:none; margin-top:16px; padding:14px; background:rgba(0,208,132,0.1); border:1px solid rgba(0,208,132,0.3); border-radius:8px; text-align:center;">
+            <div style="font-size:32px; margin-bottom:8px;">📤</div>
+            <p style="margin:0; font-weight:600; color:var(--success);">STK Push Sent!</p>
+            <p style="margin:8px 0 0 0; font-size:13px; color:var(--text-secondary);">Check your phone and enter your M-Pesa PIN</p>
+            <div id="stkPhoneDisplay" style="margin-top:12px; font-size:12px; color:var(--text-tertiary); background:var(--bg-tertiary); padding:10px; border-radius:6px; font-family:monospace;"></div>
+            <button class="action-btn outline" onclick="resetStkPush()" style="margin-top:12px; font-size:13px;">Clear</button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Regular Payment Info -->
+      <div id="paymentInfo" style="margin-top:15px; line-height:1.8;"></div>
+      <div style="text-align:center; margin-top:20px;">
+        <p style="font-size:12px; color:#888;"></p>
+      </div>
+    </div>
+  </main>
+
+  <script src="storage.js"></script>
+  <script src="config.js"></script>
+  <script src="payhero-integration.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!storage.isLoggedIn()) {
+        window.location.href = 'index.html';
+        return;
+      }
+
+      loadBalance();
+      setupMenuToggle();
+
+      // If opened from Quick Deposit, default to M-Pesa STK flow
+      try {
+        const params = new URLSearchParams(window.location.search);
+        if (params.has('quick')) {
+          selectPaymentMethod('mpesa');
+          const amt = parseFloat(params.get('amount') || '');
+          if (!isNaN(amt) && amt > 0) {
+            const amtInput = document.getElementById('mpesaAmount');
+            if (amtInput) amtInput.value = String(amt);
+          }
+        }
+      } catch (_) {}
+    });
+
+    function loadBalance() {
+      const balance = storage.getBalance('demo');
+      document.getElementById('balance').textContent = '$' + balance.toLocaleString('en-US', {minimumFractionDigits: 2});
+    }
+
+    function selectPaymentMethod(method) {
+      const details = {
+        mpesa: { title: 'M-Pesa (Pay via PayHero)', info: 'Enter your M-Pesa number and pay via PayHero in KSH', showStk: true },
+        bank: { title: 'Bank Transfer', info: 'Account: 1234567890\nBank: Global Finance Bank\nSwift: GFBKXX\nMinimum: $50', showStk: false },
+        usdt: { title: 'USDT (TRC20)', info: 'Network: TRC20\nMinimum: $25', showStk: false, address: 'TUmex3LPfRF8Zjbx8DUw6XS7YfDmuoXKuz' },
+        bitcoin: { title: 'Bitcoin', info: 'Network: Bitcoin\nMinimum: $25', showStk: false, address: '1CYRe7kTYVmQEmswhDyh6kyjDhJRoB9GEm' },
+        ethereum: { title: 'Ethereum', info: 'Network: Ethereum (ERC20)\nMinimum: $25', showStk: false, address: '0xcc6371a1f224ac0e655b6c787be086444be2f674' },
+        tron: { title: 'TRON', info: 'Network: Tron (TRC20)\nMinimum: $25', showStk: false, address: 'TUmex3LPfRF8Zjbx8DUw6XS7YfDmuoXKuz' }
+      };
+
+      const detail = details[method];
+      if (detail) {
+        document.getElementById('paymentDetailsTitle').textContent = detail.title;
+        
+        // Show STK push modal for M-Pesa
+        if (detail.showStk) {
+          document.getElementById('stkPushModal').style.display = 'block';
+          document.getElementById('paymentInfo').innerHTML = '';
+        } 
+        // Show regular payment info (with QR for crypto)
+        else {
+          document.getElementById('stkPushModal').style.display = 'none';
+          if (detail.address) {
+            const addr = detail.address;
+            const qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(addr);
+            document.getElementById('paymentInfo').innerHTML = `
+              <div style="display:flex; gap:16px; align-items:center; flex-wrap:wrap;">
+                <img src="${qrUrl}" alt="QR Code" style="border:1px solid var(--border-color); border-radius:8px; background: var(--bg-tertiary);"/>
+                <div style="min-width:220px;">
+                  <div style="font-size:12px; color:var(--text-tertiary); margin-bottom:6px;">Address</div>
+                  <div style="font-family:monospace; word-break:break-all; background:var(--bg-tertiary); padding:10px; border-radius:6px;">${addr}</div>
+                  <button class="action-btn small" style="margin-top:10px;" onclick="copyText('${addr}')">Copy Address</button>
+                  <div style="font-size:12px; color:var(--text-tertiary); margin-top:8px; white-space:pre-wrap;">${detail.info}</div>
+                </div>
+              </div>`;
+          } else {
+            document.getElementById('paymentInfo').innerHTML = '<pre style="white-space:pre-wrap; word-wrap:break-word;">' + detail.info + '</pre>';
+          }
+        }
+        
+        document.getElementById('paymentDetails').style.display = 'block';
+      }
+    }
+
+    function copyText(text) {
+      try { navigator.clipboard.writeText(text); alert('Address copied'); } catch(e) { 
+        const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); alert('Address copied');
+      }
+    }
+
+    async function initiateStkPush() {
+      const phoneInput = document.getElementById('mpesaPhone').value.trim();
+      const amount = parseFloat(document.getElementById('mpesaAmount').value);
+      
+      // Validate phone number - must be 9 digits starting with 7
+      if (!phoneInput.match(/^[7]\d{8}$/)) {
+        alert('Please enter a valid M-Pesa phone number starting with 7 (e.g., 712345678)');
+        return;
+      }
+      
+      if (!amount || amount < 10) {
+        alert('Amount must be at least $10');
+        return;
+      }
+      
+      // Prepend +254 to the phone number
+      const phone = '+254' + phoneInput;
+      console.log('STK Push initiated for:', phone, 'Amount:', amount);
+      
+      // Only send STK push to the entered phone number, no browser or OS notification
+      console.log("STK Push initiated for:", phone, "Amount:", amount);
+      alert("Check your phone and enter M-PESA PIN");
+      proceedWithStkPush(phone, amount);
+    }
+
+    async function proceedWithStkPush(phone, amount) {
+      // Show success message
+      document.getElementById('stkResponse').style.display = 'block';
+      document.getElementById('stkPhoneDisplay').textContent = 'Phone: ' + phone + '\nAmount: $' + amount.toFixed(2) + '\nStatus: ⏳ Redirecting to PayHero...';
+      
+      // Create intent via Netlify function (server-side)
+      try {
+        const user = storage.getUser() || { username: 'user' };
+        // Call Netlify function for STK push first
+        const payload = {
+          amount,
+          currency: 'KES',
+          phone,
+          metadata: {
+            user: user.username || user.email || 'unknown',
+            source: 'payment-methods',
+            quick: new URLSearchParams(window.location.search).get('quick') ? '1' : '0'
+          }
+        };
+
+        try {
+          const useLocalBackend = (new URLSearchParams(window.location.search).get('useLocalBackend') === '1') && (location.hostname === '127.0.0.1' || location.hostname === 'localhost') && location.port === '5500';
+          const stkUrl = useLocalBackend ? 'http://localhost:5000/api/payment/intent' : '/api/payment/intent';
+          const r = await fetch(stkUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const intent = await r.json().catch(() => ({}));
+          const display = document.getElementById('stkPhoneDisplay');
+          
+          // Log full response for debugging
+          console.log('STK Response:', intent);
+          if (intent.logs) console.log('STK Logs:', intent.logs);
+          
+          if (r.ok && intent && intent.success) {
+            if (display) display.textContent = `Phone: ${phone}\nAmount: $${amount.toFixed(2)}\nStatus: STK requested. Check your phone...`;
+            return;
+          } else {
+            console.error('STK Push failed:', { status: r.status, intent });
+            // Show detailed error from logs
+            let errorMsg = intent.error || 'Unknown error';
+            if (intent.logs) {
+              const errorLog = intent.logs.find(log => log.step === 'payhero_response');
+              if (errorLog && errorLog.result) {
+                errorMsg = errorLog.result.message || errorLog.result.error || JSON.stringify(errorLog.result).substring(0, 100);
+              }
+            }
+            if (display) display.textContent = `Phone: ${phone}\nAmount: $${amount.toFixed(2)}\nStatus: ❌ Failed (${r.status}). ${errorMsg}`;
+          }
+        } catch (e) {
+          console.error('stk-push function failed:', e);
+          const display = document.getElementById('stkPhoneDisplay');
+          if (display) display.textContent = `Phone: ${phone}\nAmount: $${amount.toFixed(2)}\nStatus: ❌ Network error: ${e.message || 'Unknown error'}`;
+        }
+
+        // Fallback to hosted checkout via Netlify function
+        try {
+          const useLocalBackend = (new URLSearchParams(window.location.search).get('useLocalBackend') === '1') && (location.hostname === '127.0.0.1' || location.hostname === 'localhost') && location.port === '5500';
+          const createUrl = useLocalBackend ? 'http://localhost:5000/api/payhero/create-payment' : '/api/payhero/create-payment';
+          const resp = await fetch(createUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: user.email || user.username || 'guest@preotrader.fx', amount: amount, phone })
+          });
+          const created = await resp.json().catch(() => ({}));
+          const display = document.getElementById('stkPhoneDisplay');
+          if (resp.ok && created && created.result && created.result.data && (created.result.data.payment_url || created.result.data.redirect_url)) {
+            const redirectUrl = created.result.data.payment_url || created.result.data.redirect_url;
+            if (display) display.textContent = `Phone: ${phone}\nAmount: $${amount.toFixed(2)}\nStatus: Redirecting to confirm...`;
+            window.location.href = redirectUrl;
+            return;
+          } else {
+            console.error('create-payment failed:', { status: resp.status, created });
+            if (display) display.textContent = `Phone: ${phone}\nAmount: $${amount.toFixed(2)}\nStatus: ❌ Payment failed (${resp.status}). ${created.error || 'Unknown error'}`;
+          }
+        } catch (err) {
+          console.error('create-payment function failed:', err);
+          const display = document.getElementById('stkPhoneDisplay');
+          if (display) display.textContent = `Phone: ${phone}\nAmount: $${amount.toFixed(2)}\nStatus: ❌ Network error: ${err.message || 'Unknown error'}`;
+        }
+
+        const display = document.getElementById('stkPhoneDisplay');
+        if (display) display.textContent = `Phone: ${phone}\nAmount: $${amount.toFixed(2)}\nStatus: ❌ Payment failed. Please try again.`;
+        alert('Unable to create payment. Check console for details or contact support.');
+      } catch (e) {
+        console.error('PayHero intent failed:', e);
+        const display = document.getElementById('stkPhoneDisplay');
+        if (display) display.textContent = `Phone: ${phone}\nAmount: $${amount.toFixed(2)}\nStatus: ❌ Error: ${e.message || 'Unknown error'}`;
+        alert('PayHero is currently unavailable. Please retry shortly or contact support.');
+      }
+    }
+
+    // Removed local simulation and auto-crediting to ensure payments are only
+    // completed via PayHero and reflected by backend webhook updates.
+
+    function resetStkPush() {
+      document.getElementById('mpesaPhone').value = '';
+      document.getElementById('mpesaAmount').value = '';
+      document.getElementById('stkResponse').style.display = 'none';
+    }
+
+    function sendBrowserNotification(title, message) {
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification(title, {
+          body: message,
+          icon: '/assets/logo.png',
+          badge: '/assets/logo-badge.png',
+          tag: 'preocrypto-payment',
+          requireInteraction: false
+        });
+      }
+    }
+
+    function backToPaymentList() {
+      document.getElementById('paymentDetails').style.display = 'none';
+    }
+
+    function setupMenuToggle() {
+      const menuToggle = document.getElementById('menuToggle');
+      const sideMenu = document.getElementById('sideMenu');
+      const menuClose = document.querySelector('.menu-close');
+      const logout = document.querySelector('.logout');
+      const toggleMode = document.getElementById('toggleMode');
+
+      if (menuToggle) menuToggle.addEventListener('click', () => sideMenu?.classList.add('active'));
+      if (menuClose) menuClose.addEventListener('click', () => sideMenu?.classList.remove('active'));
+      if (logout) logout.addEventListener('click', (e) => {
+        e.preventDefault();
+        storage.removeUser();
+        window.location.href = 'index.html';
+      });
+      if (toggleMode) toggleMode.addEventListener('click', () => {
+        document.body.classList.toggle('light-mode');
+        localStorage.setItem('theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
+      });
+
+      if (localStorage.getItem('theme') === 'light') {
+        document.body.classList.add('light-mode');
+      }
+    }
+  </script>
+  <script>
+    // Footer injection
+    (function(){
+      const y = new Date().getFullYear();
+      const c = (window.appConfig && window.appConfig.companyName) || 'PreoCrypto';
+      const em = (window.appConfig && window.appConfig.supportEmail) || 'support@example.com';
+      const ph = (window.appConfig && window.appConfig.supportPhone) || '+000 000 0000';
+      const f = document.createElement('footer');
+      f.className = 'site-footer';
+      f.style.cssText = 'margin-top:24px;padding:14px;text-align:center;color:var(--text-tertiary);border-top:1px solid var(--border-color);';
+      f.innerHTML = `© ${y} ${c} • Customer Care: <a href="tel:${ph}" style="color:var(--text-tertiary);">${ph}</a> • <a href="mailto:${em}" style="color:var(--text-tertiary);">${em}</a>`;
+      document.body.appendChild(f);
+    })();
+  </script>
+</body>
+</html>

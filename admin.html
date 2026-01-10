@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* Minimal admin view: hide site chrome */
+    header.top-nav, nav.side-menu { display:none !important; }
+    body { background:#0a0e27; color:#e0e0e0; font-family:Segoe UI, Roboto, sans-serif; margin:0; }
+    .container { max-width:1000px; margin:0 auto; padding:24px; }
+    body { background:#0a0e27; color:#e0e0e0; font-family:Segoe UI, Roboto, sans-serif; }
+    .card { background:rgba(0,85,255,0.08); border:1px solid rgba(0,212,255,0.2); border-radius:12px; padding:20px; margin-bottom:20px; }
+    .flex { display:flex; gap:16px; align-items:center; }
+    .table { width:100%; border-collapse:collapse; font-size:13px; }
+    .table th, .table td { padding:10px; border-bottom:1px solid rgba(0,212,255,0.1); }
+    .badge { padding:4px 8px; border-radius:6px; font-size:11px; }
+    .badge.marketer { background:rgba(0,255,0,0.15); color:#00ff00; }
+    .badge.normal { background:rgba(255,165,0,0.15); color:#ffa500; }
+    .btn { padding:8px 12px; border-radius:6px; border:1px solid #00d4ff; background:transparent; color:#00d4ff; cursor:pointer; }
+    .btn.primary { background:linear-gradient(135deg,#0055ff,#00d4ff); color:#fff; border:none; }
+    .search { width:260px; padding:8px; border-radius:6px; border:1px solid rgba(0,212,255,0.3); background:rgba(0,85,255,0.1); color:#fff; }
+    .select { padding:8px; border-radius:6px; border:1px solid rgba(0,212,255,0.3); background:rgba(0,85,255,0.1); color:#fff; }
+    .row { display:flex; gap:12px; }
+  </style>
+</head>
+<body>
+  <!-- Minimal Admin header -->
+  <div style="padding:16px 24px; border-bottom:1px solid rgba(0,212,255,0.2); background:rgba(0,85,255,0.06);">
+    <h2 style="margin:0; color:#00d4ff;">Admin — PreoCrypto</h2>
+    <small>Configure marketer win rates, roles, balances, and review totals</small>
+  </div>
+  <div class="container">
+    <div class="card flex" style="justify-content:space-between;">
+      <div>
+        <h2 style="color:#00d4ff; margin:0;">Admin Dashboard</h2>
+        <small>Compact view: Users + Deposits only</small>
+      </div>
+      <div class="row">
+        <input id="search" class="search" placeholder="Search by email/username" />
+        <select id="roleFilter" class="select">
+          <option value="all">All roles</option>
+          <option value="normal">Normal</option>
+          <option value="marketer">Marketer</option>
+        </select>
+        <button class="btn" id="refreshBtn">Refresh</button>
+        <button class="btn" id="liveToggleBtn" title="Toggle live updates">Live: On</button>
+        <small id="liveStatus" style="color:#a0a0a0; margin-left:8px;">Live • waiting…</small>
+      </div>
+    </div>
+    <!-- Win rate panel removed for compact layout; defaults set to 90% server-side -->
+
+    <div class="card">
+      <h3 style="color:#00d4ff;">Normal Users</h3>
+      <div style="color:#a0a0a0; margin-bottom:8px;">Showing only users with role "normal"</div>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Email</th><th>Username</th><th>Role</th><th>Demo Balance</th><th>Real Balance</th><th>Created</th><th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="usersTable"></tbody>
+      </table>
+      <div id="emptyState" style="text-align:center; color:#a0a0a0; padding:20px; display:none;">No users match filters</div>
+    </div>
+
+    <!-- Active Marketers -->
+    <div class="card">
+      <h3 style="color:#00d4ff;">Active Marketers</h3>
+      <div style="color:#a0a0a0; margin-bottom:8px;">Live list of users with role "marketer"</div>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Email</th><th>Username</th><th>Role</th><th>Demo Balance</th><th>Real Balance</th><th>Created</th><th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="marketersTable"></tbody>
+      </table>
+      <div id="mkEmptyState" style="text-align:center; color:#a0a0a0; padding:20px; display:none;">No marketers yet</div>
+    </div>
+
+    <!-- Edit Balances Section -->
+    <div class="card">
+      <h3 style="color:#00d4ff;">Edit User Balances</h3>
+      <div class="row" style="margin-bottom:12px; align-items:center;">
+        <select id="balanceUserSelect" class="select" style="min-width:320px;"></select>
+        <button class="btn" id="reloadUsersBtn">Reload Users</button>
+      </div>
+      <div class="row" style="margin-bottom:10px; align-items:center;">
+        <input id="demoBalanceInput" type="number" class="search" placeholder="Demo balance" style="width:220px;" />
+        <button class="btn" id="saveDemoBalanceBtn">Save Demo</button>
+      </div>
+      <div class="row" style="align-items:center;">
+        <input id="realBalanceInput" type="number" class="search" placeholder="Real balance" style="width:220px;" />
+        <button class="btn" id="saveRealBalanceBtn">Save Real</button>
+      </div>
+      <small style="color:#a0a0a0; display:block; margin-top:10px;">Tip: Initialize accounts first if balances are missing.</small>
+    </div>
+
+    <!-- Admin Actions removed for compact layout -->
+
+    <!-- Deposits Summary -->
+    <div class="card">
+      <h3 style="color:#00d4ff;">Deposits Summary</h3>
+      <div id="depositSummaryCard" style="display:flex; gap:16px; flex-wrap:wrap;">
+        <div style="color:#a0a0a0;">Loading…</div>
+      </div>
+    </div>
+
+    <!-- Recent Trades -->
+    <!-- Recent Trades removed for compact layout -->
+
+    <!-- Make Marketer kept minimal: inline controls in Users table -->
+
+    <!-- Marketer Accounts card removed to minimize UI -->
+  </div>
+
+  <script>
+    // Simple admin gate using fixed credentials and sessionStorage
+    (function adminGate(){
+      const ADMIN_EMAIL = 'wren20688@gmail.com';
+      const ADMIN_PASSWORD = 'Jos134ka2';
+      const key = 'adminAuth';
+      function showLogin(){
+        const overlay = document.createElement('div');
+        overlay.id = 'adminLoginOverlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,39,0.92);display:flex;align-items:center;justify-content:center;z-index:9999;';
+        overlay.innerHTML = `
+          <div style="width:360px;background:rgba(0,85,255,0.08);border:1px solid rgba(0,212,255,0.2);border-radius:12px;padding:24px;">
+            <h3 style="color:#00d4ff;margin-bottom:12px;">Admin Login</h3>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <input id="adminEmail" placeholder="Email" style="padding:10px;border-radius:6px;border:1px solid rgba(0,212,255,0.3);background:rgba(0,85,255,0.1);color:#fff;"/>
+              <input id="adminPassword" type="password" placeholder="Password" style="padding:10px;border-radius:6px;border:1px solid rgba(0,212,255,0.3);background:rgba(0,85,255,0.1);color:#fff;"/>
+              <button id="adminLoginBtn" class="btn primary">Login</button>
+              <div id="adminLoginMsg" style="color:#ff6b6b;font-size:12px;display:none;">Invalid email or password</div>
+            </div>
+          </div>`;
+        document.body.appendChild(overlay);
+        document.getElementById('adminLoginBtn').addEventListener('click', () => {
+          const email = (document.getElementById('adminEmail').value||'').trim();
+          const pass = (document.getElementById('adminPassword').value||'').trim();
+          if (email === ADMIN_EMAIL && pass === ADMIN_PASSWORD) {
+            sessionStorage.setItem(key, 'authenticated');
+            document.getElementById('adminLoginOverlay')?.remove();
+            refresh();
+          } else {
+            const msg = document.getElementById('adminLoginMsg');
+            msg.style.display = 'block';
+          }
+        });
+      }
+      // If the user is already logged in and marked as admin, auto-authenticate
+      try {
+        const preo = JSON.parse(localStorage.getItem('preo_user')||'null');
+        if (preo && (preo.role === 'admin' || preo.isAdmin)) {
+          sessionStorage.setItem(key, 'authenticated');
+        }
+      } catch(e){}
+      if (sessionStorage.getItem(key) !== 'authenticated') {
+          // Prevent initial API calls until login
+          const origFetch = window.fetch;
+          window.fetch = async (...args) => {
+            if (sessionStorage.getItem(key) === 'authenticated') return origFetch(...args);
+            return new Response(JSON.stringify({ error:'Not authenticated' }), { status:401 });
+          };
+          showLogin();
+        }
+    })();
+    const API = '/api';
+    // Global helpers moved out for proper scope
+    async function updateBalance(userId, type, balance){
+      const res = await (window.apiFetch || fetch)(`${API}/admin/users`, {
+        method: 'POST',
+        headers:{ 'Content-Type':'application/json' },
+        credentials:'include',
+        body: JSON.stringify({ action:'set-balance', id: userId, account: type, balance: Number(balance) })
+      });
+      return res.json();
+    }
+
+    async function promptBalance(userId){
+      const type = prompt('Enter account type to update (demo or real):','real');
+      if (!type || !['demo','real'].includes(type)) { alert('Invalid type'); return; }
+      const bal = prompt('Enter new balance amount:', '10000');
+      if (bal === null || isNaN(bal)) { alert('Invalid balance'); return; }
+      try {
+        const res = await updateBalance(userId, type, Number(bal));
+        if (res.success) {
+          alert(`${type} balance updated`);
+          await refresh();
+        } else {
+          throw new Error(res.error||'Failed');
+        }
+      } catch (e) {
+        alert('Failed to update balance. Ensure admin login and accounts exist.');
+      }
+    }
+    async function fetchUsers() {
+      try {
+          const res = await (window.apiFetch || fetch)(`${API}/admin/users`, { credentials: 'include' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const apiUsers = data.users || [];
+        
+        // Normalize user data - convert snake_case to camelCase for display
+        return apiUsers.map(u => ({
+          id: u.id || u.email || u.username,
+          email: u.email,
+          username: u.username || u.name || '',
+          role: u.role || 'normal',
+          created_at: u.created_at || new Date().toISOString(),
+          balances: { 
+            demo: parseFloat(u.demo_balance || 0), 
+            real: parseFloat(u.real_balance || 0) 
+          }
+        }));
+      } catch (e) {
+        console.warn('API users unavailable, falling back to localStorage', e.message);
+        // Fallback: read users stored by signup.html in localStorage['users']
+        const lsUsers = JSON.parse(localStorage.getItem('users')||'[]');
+        // Normalize fields to match table render
+        return lsUsers.map(u => ({
+          id: u.id || u.email || u.username,
+          email: u.email,
+          username: u.username || u.name || '',
+          role: u.role || 'normal',
+          created_at: u.created || new Date().toISOString(),
+          balances: { demo: (u.balance ?? 0), real: 0 }
+        }));
+      }
+    }
+    // actions/trades endpoints removed from compact view
+
+    // settings panel removed; server defaults to 90%
+
+    // win rate save removed in compact view
+    async function updateRole(id, role) {
+      try {
+        const res = await (window.apiFetch || fetch)(`${API}/admin/users`, {
+          method:'POST',
+          headers:{ 'Content-Type':'application/json' },
+          credentials:'include',
+          body: JSON.stringify({ action:'role', id, role })
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return await res.json();
+      } catch (e) {
+        let users = JSON.parse(localStorage.getItem('users')||'[]');
+        users = users.map(u => {
+          if ((u.id||u.email||u.username) === id) return { ...u, role };
+          return u;
+        });
+        localStorage.setItem('users', JSON.stringify(users));
+        return { success: true, role, fallback: true };
+      }
+    }
+
+    function renderUsers(users) {
+      const q = document.getElementById('search').value.toLowerCase();
+      // Force normal users list for main table
+      const filtered = users.filter(u =>
+        (!q || (u.email?.toLowerCase().includes(q) || u.username?.toLowerCase().includes(q))) &&
+        (u.role === 'normal')
+      );
+      const tbody = document.getElementById('usersTable');
+      const empty = document.getElementById('emptyState');
+      empty.style.display = filtered.length ? 'none' : 'block';
+      tbody.innerHTML = filtered.map(u => `
+        <tr>
+          <td>${u.email}</td>
+          <td>${u.username}</td>
+          <td><span class="badge ${u.role}">${u.role}</span></td>
+          <td style="text-align:right">$${(u.balances?.demo||0).toFixed(2)}</td>
+          <td style="text-align:right">$${(u.balances?.real||0).toFixed(2)}</td>
+          <td>${new Date(u.created_at).toLocaleString()}</td>
+          <td>
+            ${u.role === 'marketer'
+              ? `<button class="btn" onclick="onRole('${u.id}','normal')">Set Normal</button>`
+              : `<button class="btn primary" onclick="onRole('${u.id}','marketer')">Set Marketer</button>`}
+            <button class="btn" onclick="initAccounts('${u.id}')" style="margin-left:8px;">Init Accounts</button>
+              <button class="btn" onclick="promptBalance('${u.id}')" style="margin-left:8px;">Edit Balance</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function renderMarketersList(users) {
+      const q = document.getElementById('search').value.toLowerCase();
+      const filtered = users.filter(u =>
+        (!q || (u.email?.toLowerCase().includes(q) || u.username?.toLowerCase().includes(q))) &&
+        (u.role === 'marketer')
+      );
+      const tbody = document.getElementById('marketersTable');
+      const empty = document.getElementById('mkEmptyState');
+      empty.style.display = filtered.length ? 'none' : 'block';
+      tbody.innerHTML = filtered.map(u => `
+        <tr>
+          <td>${u.email}</td>
+          <td>${u.username}</td>
+          <td><span class="badge ${u.role}">${u.role}</span></td>
+          <td style="text-align:right">$${(u.balances?.demo||0).toFixed(2)}</td>
+          <td style="text-align:right">$${(u.balances?.real||0).toFixed(2)}</td>
+          <td>${new Date(u.created_at).toLocaleString()}</td>
+          <td>
+            <button class="btn" onclick="onRole('${u.id}','normal')">Set Normal</button>
+            <button class="btn" onclick="initAccounts('${u.id}')" style="margin-left:8px;">Init Accounts</button>
+            <button class="btn" onclick="promptBalance('${u.id}')" style="margin-left:8px;">Edit Balance</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    // --- Balance Editor ---
+    let cachedUsers = [];
+    function renderBalanceEditor(users){
+      cachedUsers = users || cachedUsers || [];
+      const select = document.getElementById('balanceUserSelect');
+      if (!select) return;
+      select.innerHTML = cachedUsers.map(u => {
+        const label = `${u.email || ''} ${u.username ? '('+u.username+')' : ''}`.trim();
+        return `<option value="${u.id}">${label}</option>`;
+      }).join('');
+      // Pre-fill balances for first user
+      const first = cachedUsers[0];
+      if (first) {
+        document.getElementById('demoBalanceInput').value = (first.balances?.demo ?? 0).toFixed(2);
+        document.getElementById('realBalanceInput').value = (first.balances?.real ?? 0).toFixed(2);
+        // Default focus to real account editing
+        document.getElementById('realBalanceInput').focus();
+      }
+      // Update inputs when selection changes
+      select.addEventListener('change', () => {
+        const id = select.value;
+        const u = cachedUsers.find(x => x.id === id);
+        if (!u) return;
+        document.getElementById('demoBalanceInput').value = (u.balances?.demo ?? 0).toFixed(2);
+        document.getElementById('realBalanceInput').value = (u.balances?.real ?? 0).toFixed(2);
+      });
+    }
+
+    // actions render removed
+
+    // --- Marketer local management ---
+    function getMarketers(){
+      return JSON.parse(localStorage.getItem('adminMarketers')||'[]');
+    }
+    function setMarketers(list){
+      localStorage.setItem('adminMarketers', JSON.stringify(list));
+    }
+    function renderMarketers(){
+      const list = getMarketers();
+      const tbody = document.getElementById('mkTable');
+      const empty = document.getElementById('mkEmpty');
+      empty.style.display = list.length ? 'none':'block';
+      tbody.innerHTML = list.map(m => `
+        <tr>
+          <td>${m.email}</td>
+          <td>${m.name||''}</td>
+          <td>${new Date(m.created).toLocaleString()}</td>
+          <td>
+            <button class="btn" onclick="removeMarketer('${m.id}')">Delete</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+    // local marketer list removed
+    window.removeMarketer = function(id){
+      let list = getMarketers();
+      list = list.filter(m => m.id !== id);
+      setMarketers(list);
+      renderMarketers();
+    }
+
+    async function refresh() {
+      const [users, deposits] = await Promise.all([
+        fetchUsers(),
+        (window.apiFetch || fetch)(`${API}/admin/deposits/summary`, { credentials: 'include' }).then(r => r.ok ? r.json() : { summary: [] })
+      ]);
+      const depositSummary = deposits.summary || [];
+      renderUsers(users);
+      renderMarketersList(users);
+      renderBalanceEditor(users);
+      // Render deposits summary (USD and KES view)
+      const depCard = document.getElementById('depositSummaryCard');
+      if (depCard) {
+        const FX_KES = 130;
+        depCard.innerHTML = (depositSummary.length ? depositSummary.map(r=>{
+          const usd = Number(r.total||0);
+          const kes = Math.round(usd * FX_KES);
+          return `<div class="card" style="padding:10px;">${r.account_type.toUpperCase()} • ${String(r.method||'UNKNOWN').toUpperCase()}: $${usd.toFixed(2)} | KES ${kes.toLocaleString()} (${r.count} deposits)</div>`;
+        }).join('') : '<div style="color:#a0a0a0;">No deposits yet</div>');
+      }
+      // Cache users for marketer conversion
+      window.__usersCache = users;
+    }
+
+    async function onRole(id, role) {
+      const res = await updateRole(id, role);
+      if (res.success) {
+        await refresh();
+        alert(`Role updated to ${role}`);
+      } else {
+        alert(res.error||'Failed to update role');
+      }
+    }
+
+    document.getElementById('refreshBtn').addEventListener('click', refresh);
+    document.getElementById('search').addEventListener('input', refresh);
+    document.getElementById('roleFilter').addEventListener('change', refresh);
+    // Removed local-only marketer add; using server role assignment instead
+
+    document.getElementById('reloadUsersBtn').addEventListener('click', refresh);
+    document.getElementById('saveDemoBalanceBtn').addEventListener('click', async () => {
+      const id = document.getElementById('balanceUserSelect').value;
+      const val = Number(document.getElementById('demoBalanceInput').value);
+      if (!id || isNaN(val)) { alert('Select user and enter a valid demo balance'); return; }
+      const res = await updateBalance(id, 'demo', val);
+      if (res.success) { alert('Demo balance updated'); await refresh(); } else { alert(res.error||'Failed'); }
+    });
+    document.getElementById('saveRealBalanceBtn').addEventListener('click', async () => {
+      const id = document.getElementById('balanceUserSelect').value;
+      const val = Number(document.getElementById('realBalanceInput').value);
+      if (!id || isNaN(val)) { alert('Select user and enter a valid real balance'); return; }
+      const res = await updateBalance(id, 'real', val);
+      if (res.success) { alert('Real balance updated'); await refresh(); } else { alert(res.error||'Failed'); }
+    });
+
+    // win rate save removed
+
+    // Make Marketer control
+    // inline marketer conversion kept via per-row buttons
+
+    async function initAccounts(userId){
+      try{
+        const res = await (window.apiFetch || fetch)(`${API}/admin/users`, { method:'POST', credentials:'include', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'init-accounts', id: userId }) });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        alert('Accounts initialized');
+        await refresh();
+      }catch(e){
+        alert('Failed to init accounts (are you logged in as admin?)');
+      }
+    }
+    // Auto-refresh every 8 seconds when tab is visible
+    let __refreshTimer = null;
+    let __liveEnabled = true;
+    function startLiveRefresh(){
+      if (__refreshTimer) clearInterval(__refreshTimer);
+      __refreshTimer = setInterval(() => { if (__liveEnabled && !document.hidden) refresh(); }, 4000);
+    }
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) { refresh(); }
+    });
+    // Update live status label after each refresh
+    const _origRefresh = refresh;
+    refresh = async function(){
+      await _origRefresh();
+      const s = document.getElementById('liveStatus');
+      if (s) s.textContent = (__liveEnabled ? 'Live • updated ' : 'Live paused • updated ') + new Date().toLocaleTimeString();
+    };
+    // Live toggle handler
+    const liveBtn = document.getElementById('liveToggleBtn');
+    if (liveBtn) {
+      liveBtn.addEventListener('click', () => {
+        __liveEnabled = !__liveEnabled;
+        liveBtn.textContent = 'Live: ' + (__liveEnabled ? 'On' : 'Off');
+        if (__liveEnabled) refresh();
+      });
+    }
+    refresh();
+    startLiveRefresh();
+  </script>
+</body>
+</html>

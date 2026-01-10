@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Forgot Password — PreoCrypto</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    body { display:flex; min-height:100vh; align-items:center; justify-content:center; background: linear-gradient(135deg,#0a1a2e,#0f3460); }
+    .panel { background: rgba(15,52,96,0.85); border:1px solid rgba(0,212,255,0.2); border-radius:16px; padding:28px; width:100%; max-width:480px; color:#fff; }
+    .field { display:flex; flex-direction:column; gap:8px; margin-bottom:14px; }
+    .field input { padding:12px; background: rgba(255,255,255,0.08); border:1px solid rgba(0,212,255,0.2); border-radius:10px; color:#fff; }
+    .actions { display:flex; gap:10px; margin-top:10px; }
+    button { padding:12px 16px; border:none; border-radius:10px; font-weight:600; cursor:pointer; }
+    .primary { background: linear-gradient(135deg,#00d4ff,#0055ff); color:#fff; }
+    .outline { background: rgba(255,255,255,0.1); color:#00d4ff; border:1.5px solid rgba(0,212,255,0.5); }
+    .msg { margin-top:10px; font-size:0.95em; opacity:0.85; }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <h2 style="margin:0 0 12px;">Reset your password</h2>
+    <p style="opacity:0.8;">Enter your email or username to receive a reset code.</p>
+
+    <div class="field">
+      <label>Email or Username</label>
+      <input id="identifier" type="text" placeholder="you@example.com" />
+    </div>
+    <div class="actions">
+      <button id="requestBtn" class="primary">Request Code</button>
+      <a href="login.html" class="outline" style="display:inline-block; text-decoration:none; padding:12px 16px; border-radius:10px;">Back to Login</a>
+    </div>
+
+    <hr style="opacity:0.2; margin:18px 0;" />
+    <div class="field">
+      <label>Verification Code</label>
+      <input id="code" type="text" placeholder="6-digit code" />
+    </div>
+    <div class="field">
+      <label>New Password</label>
+      <input id="newPassword" type="password" placeholder="Enter new password" />
+    </div>
+    <div class="actions">
+      <button id="resetBtn" class="primary">Reset Password</button>
+    </div>
+    <div id="message" class="msg"></div>
+  </div>
+
+  <script src="config.js"></script>
+  <script>
+    const msg = document.getElementById('message');
+    document.getElementById('requestBtn').addEventListener('click', async () => {
+      msg.textContent = '';
+      const identifier = document.getElementById('identifier').value.trim();
+      if (!identifier) { msg.textContent = 'Please enter your email or username.'; return; }
+      try {
+        const res = await (window.apiFetch||fetch)('/api/auth/forgot', {
+          method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ identifier })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error||'Failed to request code');
+        msg.textContent = `Code sent. For testing: ${data.code}. Expires in 15 minutes.`;
+      } catch(e){ msg.textContent = e.message; }
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', async () => {
+      msg.textContent = '';
+      const identifier = document.getElementById('identifier').value.trim();
+      const code = document.getElementById('code').value.trim();
+      const newPassword = document.getElementById('newPassword').value;
+      if (!identifier || !code || !newPassword) { msg.textContent = 'Fill all fields.'; return; }
+      try {
+        const res = await (window.apiFetch||fetch)('/api/auth/reset', {
+          method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ identifier, code, newPassword })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error||'Failed to reset');
+        msg.textContent = 'Password updated. Redirecting to login…';
+        setTimeout(()=>{ window.location.href='login.html'; }, 1200);
+      } catch(e){ msg.textContent = e.message; }
+    });
+  </script>
+</body>
+</html>

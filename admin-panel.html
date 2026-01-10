@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Panel - PreoCrypto</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0a0e27;
+      color: #e0e0e0;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 40px;
+      padding-bottom: 20px;
+      border-bottom: 2px solid rgba(0, 212, 255, 0.3);
+    }
+
+    .header h1 {
+      color: #00d4ff;
+      font-size: 32px;
+      margin-bottom: 10px;
+    }
+
+    .header p {
+      color: #a0a0a0;
+    }
+
+    .control-section {
+      background: rgba(0, 212, 255, 0.05);
+      border: 1px solid rgba(0, 212, 255, 0.2);
+      border-radius: 12px;
+      padding: 30px;
+      margin-bottom: 30px;
+    }
+
+    .control-section h2 {
+      color: #00d4ff;
+      font-size: 20px;
+      margin-bottom: 25px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      color: #a0a0a0;
+      font-size: 14px;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      padding: 12px;
+      background: rgba(0, 85, 255, 0.1);
+      border: 1px solid rgba(0, 212, 255, 0.3);
+      border-radius: 6px;
+      color: #fff;
+      font-size: 14px;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus {
+      outline: none;
+      border-color: #00d4ff;
+      box-shadow: 0 0 10px rgba(0, 212, 255, 0.2);
+    }
+
+    .slider-group {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .slider-group input[type="range"] {
+      flex: 1;
+      height: 6px;
+      cursor: pointer;
+    }
+
+    .slider-value {
+      background: rgba(0, 255, 0, 0.15);
+      border: 1px solid rgba(0, 255, 0, 0.3);
+      color: #00ff00;
+      padding: 6px 15px;
+      border-radius: 4px;
+      font-weight: 600;
+      min-width: 60px;
+      text-align: center;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 15px;
+      margin-top: 25px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 12px 20px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease-out;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #0055ff, #00d4ff);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 30px rgba(0, 85, 255, 0.3);
+    }
+
+    .btn-secondary {
+      background: transparent;
+      border: 1px solid #00d4ff;
+      color: #00d4ff;
+    }
+
+    .btn-secondary:hover {
+      background: rgba(0, 212, 255, 0.1);
+    }
+
+    .btn-danger {
+      background: rgba(255, 0, 0, 0.15);
+      border: 1px solid rgba(255, 0, 0, 0.3);
+      color: #ff6b6b;
+    }
+
+    .btn-danger:hover {
+      background: rgba(255, 0, 0, 0.25);
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-top: 25px;
+    }
+
+    .stat-card {
+      background: rgba(0, 85, 255, 0.1);
+      border: 1px solid rgba(0, 212, 255, 0.2);
+      border-radius: 8px;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .stat-label {
+      color: #a0a0a0;
+      font-size: 12px;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+
+    .stat-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: #00d4ff;
+    }
+
+    .alert {
+      padding: 15px;
+      border-radius: 6px;
+      margin-bottom: 20px;
+      font-size: 14px;
+    }
+
+    .alert-success {
+      background: rgba(0, 255, 0, 0.15);
+      border: 1px solid rgba(0, 255, 0, 0.3);
+      color: #00ff00;
+    }
+
+    .alert-info {
+      background: rgba(0, 212, 255, 0.15);
+      border: 1px solid rgba(0, 212, 255, 0.3);
+      color: #00d4ff;
+    }
+
+    .alert-warning {
+      background: rgba(255, 165, 0, 0.15);
+      border: 1px solid rgba(255, 165, 0, 0.3);
+      color: #ffa500;
+    }
+
+    .trader-list {
+      background: rgba(0, 85, 255, 0.05);
+      border-radius: 8px;
+      overflow: hidden;
+      margin-top: 15px;
+    }
+
+    .trader-item {
+      padding: 15px;
+      border-bottom: 1px solid rgba(0, 212, 255, 0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .trader-item:last-child {
+      border-bottom: none;
+    }
+
+    .trader-info h4 {
+      color: #00d4ff;
+      margin-bottom: 5px;
+    }
+
+    .trader-info p {
+      color: #a0a0a0;
+      font-size: 12px;
+    }
+
+    .trader-stats {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+    }
+
+    .trader-stat {
+      text-align: right;
+    }
+
+    .trader-stat-label {
+      color: #a0a0a0;
+      font-size: 11px;
+    }
+
+    .trader-stat-value {
+      color: #00ff00;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    @media (max-width: 768px) {
+      .control-section {
+        padding: 20px;
+      }
+
+      .slider-group {
+        flex-direction: column;
+      }
+
+      .button-group {
+        flex-direction: column;
+      }
+
+      .trader-item {
+        flex-direction: column;
+        gap: 15px;
+      }
+
+      .trader-stats {
+        width: 100%;
+        justify-content: space-around;
+      }
+    }
+  </style>
+</head>
+<body>
+  <script>
+    // Admin gate for this panel
+    (function adminGate(){
+      const ADMIN_EMAIL = 'wren20688@gmail.com';
+      const ADMIN_PASSWORD = 'Jos134ka2';
+      const key = 'adminPanelAuth';
+
+      function showLogin(){
+        const overlay = document.createElement('div');
+        overlay.id = 'adminLoginOverlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,39,0.96);display:flex;align-items:center;justify-content:center;z-index:99999;';
+        overlay.innerHTML = `
+          <div style="width:360px;background:rgba(0,85,255,0.06);border:1px solid rgba(0,212,255,0.12);border-radius:12px;padding:24px;color:#e0e0e0;">
+            <h3 style="color:#00d4ff;margin-bottom:12px;">Admin Login</h3>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <input id="adminEmail" placeholder="Email" style="padding:10px;border-radius:6px;border:1px solid rgba(0,212,255,0.1);background:rgba(0,85,255,0.04);color:#fff;"/>
+              <input id="adminPassword" type="password" placeholder="Password" style="padding:10px;border-radius:6px;border:1px solid rgba(0,212,255,0.1);background:rgba(0,85,255,0.04);color:#fff;"/>
+              <button id="adminLoginBtn" style="padding:10px;border-radius:6px;border:none;background:linear-gradient(135deg,#0055ff,#00d4ff);color:#fff;cursor:pointer;">Login</button>
+              <div id="adminLoginMsg" style="color:#ff6b6b;font-size:12px;display:none;">Invalid email or password</div>
+            </div>
+          </div>`;
+        document.body.appendChild(overlay);
+        document.getElementById('adminLoginBtn').addEventListener('click', () => {
+          const email = (document.getElementById('adminEmail').value||'').trim();
+          const pass = (document.getElementById('adminPassword').value||'').trim();
+          if (email === ADMIN_EMAIL && pass === ADMIN_PASSWORD) {
+            sessionStorage.setItem(key, 'authenticated');
+            overlay.remove();
+          } else {
+            document.getElementById('adminLoginMsg').style.display = 'block';
+          }
+        });
+      }
+
+      if (sessionStorage.getItem(key) !== 'authenticated') {
+        // Block API calls until login (simple safeguard)
+        const origFetch = window.fetch;
+        window.fetch = async (...args) => {
+          if (sessionStorage.getItem(key) === 'authenticated') return origFetch(...args);
+          return new Response(JSON.stringify({ error:'Not authenticated' }), { status:401 });
+        };
+        // Show overlay
+        showLogin();
+      }
+    })();
+  </script>
+  <div class="container">
+    <div class="header">
+      <h1>⚙️ Admin Control Panel</h1>
+      <p>Manage marketer account profitability and trading parameters</p>
+    </div>
+
+    <!-- Win Rate Control -->
+    <div class="control-section">
+      <h2>📊 Set Marketer Win Rate</h2>
+      
+      <div id="successAlert" class="alert alert-success" style="display: none;">
+        ✓ Settings saved successfully!
+      </div>
+
+      <div class="form-group">
+        <label>Desired Win Percentage (%)</label>
+        <div class="slider-group">
+          <input type="range" id="winRateSlider" min="50" max="100" value="87" step="1">
+          <span class="slider-value" id="winRateValue">87%</span>
+        </div>
+        <p style="color: #a0a0a0; font-size: 12px; margin-top: 8px;">
+          Set between 50-100%. Higher = more profitable accounts, Lower = more realistic
+        </p>
+      </div>
+
+      <div class="form-group">
+        <label>Max Consecutive Losses (Hard Limit)</label>
+        <select id="maxLosses">
+          <option value="1">1 Loss Maximum</option>
+          <option value="2" selected>2 Losses Maximum (Recommended)</option>
+          <option value="3">3 Losses Maximum</option>
+          <option value="5">5 Losses Maximum</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Average Win Per Trade ($)</label>
+        <input type="number" id="avgWin" value="245" min="50" max="5000" step="50">
+      </div>
+
+      <div class="form-group">
+        <label>Average Loss Per Trade ($)</label>
+        <input type="number" id="avgLoss" value="150" min="10" max="1000" step="10">
+      </div>
+
+      <div class="button-group">
+        <button class="btn btn-primary" onclick="saveSettings()">💾 Save Settings</button>
+        <button class="btn btn-secondary" onclick="previewSettings()">👁️ Preview Changes</button>
+        <button class="btn btn-danger" onclick="resetToDefault()">🔄 Reset to Default</button>
+      </div>
+    </div>
+
+    <!-- Current Settings Display -->
+    <div class="control-section">
+      <h2>⚡ Current Configuration</h2>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Win Rate</div>
+          <div class="stat-value" id="displayWinRate">87%</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Max Losses</div>
+          <div class="stat-value" id="displayMaxLosses">2</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Avg Win</div>
+          <div class="stat-value" id="displayAvgWin">$245</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Avg Loss</div>
+          <div class="stat-value" id="displayAvgLoss">$150</div>
+        </div>
+      </div>
+
+      <div style="margin-top: 20px; padding: 15px; background: rgba(0, 212, 255, 0.1); border-radius: 6px; border-left: 3px solid #00d4ff;">
+        <p style="color: #a0a0a0; font-size: 13px; line-height: 1.6;">
+          <strong>Expected Outcome:</strong> With 87% win rate, a marketer with 100 trades will have ~87 wins and ~13 losses, 
+          generating approximately <span id="expectedProfit" style="color: #00ff00; font-weight: 600;">$21,515</span> in net profit.
+        </p>
+      </div>
+    </div>
+
+    <!-- Marketer Accounts -->
+    <div class="control-section">
+      <h2>👥 Marketer Accounts</h2>
+      <div id="marketerList" class="trader-list">
+        <!-- Populated by JavaScript -->
+      </div>
+      <button class="btn btn-primary" onclick="addMarketer()" style="margin-top: 15px; width: 100%;">+ Add New Marketer</button>
+    </div>
+
+    <!-- Instructions -->
+    <div class="control-section" style="background: rgba(255, 165, 0, 0.05); border-color: rgba(255, 165, 0, 0.2);">
+      <h2 style="color: #ffa500;">📋 Instructions</h2>
+      <ol style="color: #a0a0a0; line-height: 2; padding-left: 20px;">
+        <li>Use the <strong>Win Rate</strong> slider to set profitability (87% = very profitable, 60% = realistic)</li>
+        <li>Set <strong>Max Losses</strong> to control risk exposure per marketer</li>
+        <li>Adjust <strong>Avg Win/Loss</strong> to control trade sizes</li>
+        <li>Click <strong>Save Settings</strong> to apply to all marketer accounts</li>
+        <li>Settings are stored in browser localStorage and persist across sessions</li>
+      </ol>
+    </div>
+
+    <!-- User Accounts & Deposits Section -->
+    <div class="control-section">
+      <h2>💰 User Accounts & Deposits</h2>
+      
+      <div style="margin-bottom: 20px; display: flex; gap: 10px;">
+        <button class="btn btn-primary" onclick="generateMockUsers()" style="flex: 1;">📊 Generate Test Users</button>
+        <button class="btn btn-secondary" onclick="exportUserData()" style="flex: 1;">📥 Export User Data</button>
+        <button class="btn btn-danger" onclick="clearAllUsers()" style="flex: 1;">🗑️ Clear All Users</button>
+      </div>
+
+      <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; color: #a0a0a0; font-size: 13px;">
+          <thead>
+            <tr style="background: rgba(0, 212, 255, 0.1); border-bottom: 2px solid rgba(0, 212, 255, 0.2);">
+              <th style="padding: 12px; text-align: left; color: #00d4ff;">User ID</th>
+              <th style="padding: 12px; text-align: left; color: #00d4ff;">Email</th>
+              <th style="padding: 12px; text-align: left; color: #00d4ff;">Account Type</th>
+              <th style="padding: 12px; text-align: right; color: #00d4ff;">Deposited</th>
+              <th style="padding: 12px; text-align: right; color: #00d4ff;">Balance</th>
+              <th style="padding: 12px; text-align: right; color: #00d4ff;">Profit/Loss</th>
+              <th style="padding: 12px; text-align: center; color: #00d4ff;">Status</th>
+              <th style="padding: 12px; text-align: center; color: #00d4ff;">Action</th>
+            </tr>
+          </thead>
+          <tbody id="usersTable">
+            <!-- Populated by JavaScript -->
+          </tbody>
+        </table>
+      </div>
+
+      <div id="noUsersMessage" style="text-align: center; color: #a0a0a0; padding: 40px;">
+        <p>📭 No users yet. Click "Generate Test Users" to create sample data.</p>
+      </div>
+    </div>
+
+    <!-- User Stats Overview -->
+    <div class="control-section">
+      <h2>📈 Revenue Dashboard</h2>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Total Users</div>
+          <div class="stat-value" id="totalUsers">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Total Deposits</div>
+          <div class="stat-value" id="totalDeposits">$0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Total Balances</div>
+          <div class="stat-value" id="totalBalances">$0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Profit Generated</div>
+          <div class="stat-value" id="totalProfit" style="color: #00ff00;">$0</div>
+        </div>
+      </div>
+    </div>
+
+  <script defer>
+    // Admin Settings Manager
+    class AdminSettingsManager {
+      constructor() {
+        this.defaultSettings = {
+          winRate: 87,
+          maxLosses: 2,
+          avgWin: 245,
+          avgLoss: 150
+        };
+        this.settings = this.loadSettings();
+        this.initializeUI();
+      }
+
+      loadSettings() {
+        const saved = JSON.parse(localStorage.getItem('adminSettings')) || {};
+        return { ...this.defaultSettings, ...saved };
+      }
+
+      saveSettings() {
+        localStorage.setItem('adminSettings', JSON.stringify(this.settings));
+        this.updateDisplay();
+        return true;
+      }
+
+      resetToDefault() {
+        this.settings = { ...this.defaultSettings };
+        this.saveSettings();
+        this.initializeUI();
+      }
+
+      initializeUI() {
+        document.getElementById('winRateSlider').value = this.settings.winRate;
+        document.getElementById('winRateValue').textContent = this.settings.winRate + '%';
+        document.getElementById('maxLosses').value = this.settings.maxLosses;
+        document.getElementById('avgWin').value = this.settings.avgWin;
+        document.getElementById('avgLoss').value = this.settings.avgLoss;
+        this.updateDisplay();
+      }
+
+      updateDisplay() {
+        document.getElementById('displayWinRate').textContent = this.settings.winRate + '%';
+        document.getElementById('displayMaxLosses').textContent = this.settings.maxLosses;
+        document.getElementById('displayAvgWin').textContent = '$' + this.settings.avgWin;
+        document.getElementById('displayAvgLoss').textContent = '$' + this.settings.avgLoss;
+        
+        // Calculate expected profit
+        const trades = 100;
+        const wins = Math.round(trades * (this.settings.winRate / 100));
+        const losses = trades - wins;
+        const expectedProfit = (wins * this.settings.avgWin) - (losses * this.settings.avgLoss);
+        document.getElementById('expectedProfit').textContent = '$' + expectedProfit.toLocaleString();
+      }
+
+      getSettings() {
+        return { ...this.settings };
+      }
+    }
+
+    // Initialize Admin Panel
+    const adminManager = new AdminSettingsManager();
+
+    // User Management System
+    class UserManager {
+      constructor() {
+        const raw = JSON.parse(localStorage.getItem('users')) || [];
+        // Normalize signup users to admin panel schema with safe defaults
+        this.users = raw.map(u => ({
+          id: u.id || 'USER_' + Date.now() + Math.floor(Math.random()*1000),
+          email: u.email || u.username || '',
+          role: u.role || 'normal',
+          accountType: u.accountType || 'demo',
+          deposited: Number(u.deposited || 0),
+          balance: Number(u.balance ?? (u.deposited || 0)),
+          profitLoss: Number(u.profitLoss || 0),
+          status: u.status || 'active',
+          createdAt: u.created || new Date().toLocaleString(),
+          trades: Number(u.trades || 0)
+        }));
+      }
+
+      addUser(userData) {
+        const user = {
+          id: 'USER_' + Date.now(),
+          email: userData.email,
+          accountType: userData.accountType || 'demo',
+          deposited: userData.deposited || 0,
+          balance: userData.balance || userData.deposited || 0,
+          profitLoss: userData.profitLoss || 0,
+          status: 'active',
+          createdAt: new Date().toLocaleString(),
+          trades: userData.trades || 0
+        };
+        this.users.push(user);
+        this.saveUsers();
+        return user;
+      }
+
+      getUser(userId) {
+        return this.users.find(u => u.id === userId);
+      }
+
+      updateUserBalance(userId, newBalance) {
+        const user = this.getUser(userId);
+        if (user) {
+          user.profitLoss = newBalance - user.deposited;
+          user.balance = newBalance;
+          this.saveUsers();
+        }
+      }
+
+      deleteUser(userId) {
+        this.users = this.users.filter(u => u.id !== userId);
+        this.saveUsers();
+      }
+
+      getAllUsers() {
+        return [...this.users];
+      }
+
+      getTotalDeposits() {
+        return this.users.reduce((sum, u) => sum + u.deposited, 0);
+      }
+
+      getTotalBalances() {
+        return this.users.reduce((sum, u) => sum + u.balance, 0);
+      }
+
+      getTotalProfit() {
+        return this.users.reduce((sum, u) => sum + u.profitLoss, 0);
+      }
+
+      saveUsers() {
+        localStorage.setItem('users', JSON.stringify(this.users));
+        this.renderUsers();
+        this.updateStats();
+      }
+
+      renderUsers() {
+        const table = document.getElementById('usersTable');
+        const noMsg = document.getElementById('noUsersMessage');
+        
+        if (this.users.length === 0) {
+          table.innerHTML = '';
+          noMsg.style.display = 'block';
+          return;
+        }
+
+        noMsg.style.display = 'none';
+        table.innerHTML = this.users.map(user => `
+          <tr style="border-bottom: 1px solid rgba(0, 212, 255, 0.1); hover: background: rgba(0, 212, 255, 0.05);">
+            <td style="padding: 12px; color: #00d4ff; font-weight: 600;">${user.id}</td>
+            <td style="padding: 12px; color: #e0e0e0;">${user.email}</td>
+            <td style="padding: 12px; color: #ffa500; text-transform: capitalize;">${user.accountType || 'demo'}</td>
+            <td style="padding: 12px; text-align: right; color: #00ff00; font-weight: 600;">$${Number(user.deposited || 0).toLocaleString()}</td>
+            <td style="padding: 12px; text-align: right; color: #00d4ff; font-weight: 600;">$${Number(user.balance || 0).toLocaleString()}</td>
+            <td style="padding: 12px; text-align: right; color: ${Number(user.profitLoss || 0) >= 0 ? '#00ff00' : '#ff6b6b'}; font-weight: 600;">
+              ${Number(user.profitLoss || 0) >= 0 ? '+' : ''}$${Number(user.profitLoss || 0).toLocaleString()}
+            </td>
+            <td style="padding: 12px; text-align: center;">
+              <span style="background: ${user.role === 'marketer' ? 'rgba(0,255,0,0.15)' : 'rgba(255,165,0,0.06)'}; color: ${user.role === 'marketer' ? '#00ff00' : '#ffa500'}; padding: 4px 8px; border-radius: 4px; font-size: 11px;">
+                ${user.role.toUpperCase()}
+              </span>
+            </td>
+            <td style="padding: 12px; text-align: center;">
+              <button onclick="editUser('${user.id}')" style="background: #0055ff; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; margin-right: 5px; font-size: 11px;">Edit</button>
+              <button onclick="toggleMarketer('${user.id}')" style="background: #22c55e; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; margin-right: 5px; font-size: 11px;">Toggle Marketer</button>
+              <button onclick="removeUser('${user.id}')" style="background: #ff6b6b; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;">Delete</button>
+            </td>
+          </tr>
+        `).join('');
+      }
+
+      updateStats() {
+        document.getElementById('totalUsers').textContent = this.users.length;
+        document.getElementById('totalDeposits').textContent = '$' + this.getTotalDeposits().toLocaleString();
+        document.getElementById('totalBalances').textContent = '$' + this.getTotalBalances().toLocaleString();
+        document.getElementById('totalProfit').textContent = '$' + this.getTotalProfit().toLocaleString();
+      }
+    }
+
+    // Initialize User Manager
+    const userManager = new UserManager();
+    userManager.renderUsers();
+    userManager.updateStats();
+
+    // Event Listeners
+    document.getElementById('winRateSlider').addEventListener('input', (e) => {
+      document.getElementById('winRateValue').textContent = e.target.value + '%';
+    });
+
+    function saveSettings() {
+      adminManager.settings.winRate = parseInt(document.getElementById('winRateSlider').value);
+      adminManager.settings.maxLosses = parseInt(document.getElementById('maxLosses').value);
+      adminManager.settings.avgWin = parseInt(document.getElementById('avgWin').value);
+      adminManager.settings.avgLoss = parseInt(document.getElementById('avgLoss').value);
+
+      if (adminManager.saveSettings()) {
+        showAlert('success');
+        // Notify main page of changes
+        window.parent.postMessage({ type: 'settingsUpdated', settings: adminManager.settings }, '*');
+      }
+    }
+
+    function resetToDefault() {
+      if (confirm('⚠️ Reset all settings to default? This cannot be undone.')) {
+        adminManager.resetToDefault();
+        showAlert('success', 'Settings reset to defaults');
+      }
+    }
+
+    function previewSettings() {
+      const settings = adminManager.getSettings();
+      alert(`📊 Preview:\n\nWin Rate: ${settings.winRate}%\nMax Losses: ${settings.maxLosses}\nAvg Win: $${settings.avgWin}\nAvg Loss: $${settings.avgLoss}`);
+    }
+
+    function addMarketer() {
+      const name = prompt('Enter marketer name:');
+      if (name) {
+        const marketers = JSON.parse(localStorage.getItem('marketers')) || [];
+        marketers.push({ id: Date.now(), name: name, created: new Date().toLocaleString() });
+        localStorage.setItem('marketers', JSON.stringify(marketers));
+        loadMarketers();
+      }
+    }
+
+    function loadMarketers() {
+      const marketers = JSON.parse(localStorage.getItem('marketers')) || [];
+      const list = document.getElementById('marketerList');
+      
+      if (marketers.length === 0) {
+        list.innerHTML = '<p style="padding: 20px; color: #a0a0a0; text-align: center;">No marketers yet. Click "Add New Marketer" to get started.</p>';
+        return;
+      }
+
+      list.innerHTML = marketers.map(m => `
+        <div class="trader-item">
+          <div class="trader-info">
+            <h4>${m.name}</h4>
+            <p>Added: ${m.created}</p>
+          </div>
+          <div class="trader-stats">
+            <div class="trader-stat">
+              <div class="trader-stat-label">Win Rate</div>
+              <div class="trader-stat-value">${adminManager.settings.winRate}%</div>
+            </div>
+            <div class="trader-stat">
+              <div class="trader-stat-label">Max Loss</div>
+              <div class="trader-stat-value">${adminManager.settings.maxLosses}</div>
+            </div>
+          </div>
+          <button class="btn btn-danger" onclick="removeMarketer(${m.id})" style="width: 100px; padding: 8px; font-size: 12px;">Delete</button>
+        </div>
+      `).join('');
+    }
+
+    function removeMarketer(id) {
+      if (confirm('Remove this marketer?')) {
+        let marketers = JSON.parse(localStorage.getItem('marketers')) || [];
+        marketers = marketers.filter(m => m.id !== id);
+        localStorage.setItem('marketers', JSON.stringify(marketers));
+        loadMarketers();
+      }
+    }
+
+    // Generate Mock Users
+    function generateMockUsers() {
+      const mockUsers = [
+        { email: 'john.doe@gmail.com', accountType: 'demo', deposited: 0, balance: 10245, profitLoss: 245, trades: 12 },
+        { email: 'jane.smith@yahoo.com', accountType: 'standard', deposited: 500, balance: 725, profitLoss: 225, trades: 8 },
+        { email: 'mike.johnson@outlook.com', accountType: 'standard', deposited: 1000, balance: 1580, profitLoss: 580, trades: 15 },
+        { email: 'sarah.williams@gmail.com', accountType: 'professional', deposited: 5000, balance: 6540, profitLoss: 1540, trades: 32 },
+        { email: 'alex.brown@company.com', accountType: 'standard', deposited: 2000, balance: 2890, profitLoss: 890, trades: 20 },
+        { email: 'emma.davis@mail.com', accountType: 'demo', deposited: 0, balance: 11250, profitLoss: 1250, trades: 18 },
+        { email: 'chris.miller@gmail.com', accountType: 'professional', deposited: 10000, balance: 15300, profitLoss: 5300, trades: 45 },
+        { email: 'lisa.taylor@yahoo.com', accountType: 'standard', deposited: 750, balance: 980, profitLoss: 230, trades: 10 }
+      ];
+
+      mockUsers.forEach(userData => {
+        userManager.addUser(userData);
+      });
+
+      showAlert('success', '✓ 8 test users created successfully!');
+    }
+
+    // Edit User
+    function editUser(userId) {
+      const user = userManager.getUser(userId);
+      if (!user) return;
+
+      const newBalance = prompt(`Edit balance for ${user.email}\nCurrent: $${user.balance}`, user.balance);
+      if (newBalance && !isNaN(newBalance)) {
+        userManager.updateUserBalance(userId, parseFloat(newBalance));
+        showAlert('success', 'User balance updated!');
+      }
+    }
+
+    // Remove User
+    function removeUser(userId) {
+      if (confirm('⚠️ Are you sure you want to delete this user? This cannot be undone.')) {
+        userManager.deleteUser(userId);
+        showAlert('success', 'User deleted successfully!');
+      }
+    }
+
+    // Export User Data
+    function exportUserData() {
+      const users = userManager.getAllUsers();
+      const csv = [
+        ['User ID', 'Email', 'Account Type', 'Deposited', 'Balance', 'Profit/Loss', 'Status', 'Created'],
+        ...users.map(u => [u.id, u.email, u.accountType, u.deposited, u.balance, u.profitLoss, u.status, u.createdAt])
+      ].map(row => row.join(',')).join('\n');
+
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'users_' + new Date().getTime() + '.csv';
+      a.click();
+      window.URL.revokeObjectURL(url);
+
+      showAlert('success', '✓ User data exported to CSV!');
+    }
+
+    // Clear All Users
+    function clearAllUsers() {
+      if (confirm('⚠️ WARNING: This will delete ALL users. Are you absolutely sure?')) {
+        localStorage.setItem('users', JSON.stringify([]));
+        userManager.users = [];
+        userManager.renderUsers();
+        userManager.updateStats();
+        showAlert('success', 'All users cleared!');
+      }
+    }
+
+    // Enhanced showAlert function (already exists, shown for reference)
+    function showAlert(type, message) {
+      const alert = document.getElementById('successAlert');
+      alert.textContent = message || '✓ Settings saved successfully!';
+      alert.className = `alert alert-${type}`;
+      alert.style.display = 'block';
+      setTimeout(() => alert.style.display = 'none', 3000);
+    }
+
+    // Real-time Sync with Main Website
+    class WebsiteSyncManager {
+      constructor() {
+        this.syncInterval = null;
+      }
+
+      // Listen for changes from main website
+      startListening() {
+        window.addEventListener('storage', (e) => {
+          if (e.key === 'adminSettings' || e.key === 'users') {
+            console.log('📡 Changes detected from main website, updating admin panel...');
+            this.refreshAdminPanel();
+          }
+        });
+      }
+
+      // Notify main website of admin changes
+      notifyWebsite(message) {
+        const event = new CustomEvent('adminPanelUpdate', { detail: message });
+        window.parent.postMessage({ type: 'adminUpdate', data: message }, '*');
+        console.log('📡 Admin changes synced to website');
+      }
+
+      // Refresh admin panel with latest data
+      refreshAdminPanel() {
+        userManager.users = JSON.parse(localStorage.getItem('users')) || [];
+        userManager.renderUsers();
+        userManager.updateStats();
+        adminManager.settings = JSON.parse(localStorage.getItem('adminSettings')) || adminManager.defaultSettings;
+        adminManager.initializeUI();
+      }
+
+      // Full sync both directions
+      fullSync() {
+        console.log('🔄 Full sync initiated...');
+        this.refreshAdminPanel();
+        this.notifyWebsite('Admin panel synced with website');
+      }
+    }
+
+    // Initialize Sync Manager
+    const syncManager = new WebsiteSyncManager();
+    syncManager.startListening();
+
+    // Toggle marketer role for a given user id (persist balance and sync to users)
+    window.toggleMarketer = function(userId) {
+      const u = userManager.getUser(userId);
+      if (!u) return alert('User not found');
+      const marketers = JSON.parse(localStorage.getItem('marketers') || '[]');
+
+      if (u.role === 'marketer') {
+        // Demote
+        u.role = 'normal';
+        const kept = marketers.filter(m => m.id !== u.id && m.email !== u.email);
+        localStorage.setItem('marketers', JSON.stringify(kept));
+      } else {
+        // Promote to marketer: preserve existing real balance (if any)
+        u.role = 'marketer';
+        const existing = marketers.find(m => m.id === u.id || m.email === u.email);
+        if (!existing) {
+          const initialBalance = Number(u.balance || 0);
+          marketers.push({ id: u.id, email: u.email, name: u.email, created: new Date().toLocaleString(), balance: initialBalance, consecLosses: 0 });
+        }
+        localStorage.setItem('marketers', JSON.stringify(marketers));
+      }
+
+      // Persist user change and sync
+      userManager.saveUsers();
+      showAlert('success', `User ${u.email} role set to ${u.role}`);
+      syncManager.notifyWebsite({ type: 'roleChange', userId: u.id, role: u.role });
+    };
+
+    // Deposits summary updater (USD + KES)
+    function updateDepositsSummary() {
+      const FX_KES = Number(localStorage.getItem('FX_KES') || 130);
+      // Prefer storage.getTransactions() if available
+      let tx = [];
+      try { tx = (window.storage && storage.getTransactions) ? storage.getTransactions() : JSON.parse(localStorage.getItem('preo_transactions') || localStorage.getItem('transactions') || '[]'); } catch(e){ tx = []; }
+      const deposits = (tx || []).filter(t => (t.type === 'deposit' || (t.kind && t.kind==='deposit')) && (t.status === 'completed' || !t.status));
+      let totalUSD = 0;
+      let totalKES = 0;
+      deposits.forEach(d => {
+        const amt = Number(d.amount || 0);
+        const currency = (d.currency || '').toUpperCase();
+        if (currency === 'KES' || (d.method && d.method.toLowerCase().includes('mpesa'))) {
+          totalKES += amt;
+          totalUSD += amt / FX_KES;
+        } else {
+          totalUSD += amt;
+          totalKES += amt * FX_KES;
+        }
+      });
+      const usdStr = '$' + totalUSD.toFixed(2);
+      const kesStr = 'KES ' + Math.round(totalKES).toLocaleString();
+      const el = document.getElementById('totalDeposits');
+      if (el) el.textContent = `${usdStr} • ${kesStr}`;
+    }
+
+    // Call deposits updater periodically
+    setInterval(updateDepositsSummary, 5000);
+    // Also call once on load
+    updateDepositsSummary();
+
+    // Simulate marketer performance and credit their real balances periodically
+    function simulateMarketerPerformance() {
+      const marketers = JSON.parse(localStorage.getItem('marketers') || '[]');
+      if (!marketers || marketers.length === 0) return;
+      const settings = adminManager.getSettings();
+      const winProb = (settings.winRate || 87) / 100;
+      const avgWin = Number(settings.avgWin || 245);
+      const avgLoss = Number(settings.avgLoss || 150);
+      const maxLosses = Number(settings.maxLosses || 2);
+
+      let changed = false;
+      marketers.forEach((m, idx) => {
+        // Ensure fields
+        m.balance = Number(m.balance || 0);
+        m.consecLosses = Number(m.consecLosses || 0);
+
+        // Determine outcome (enforce maxLosses: if consecLosses >= maxLosses, force a win)
+        const forceWin = m.consecLosses >= maxLosses && maxLosses > 0;
+        const isWin = forceWin ? true : (Math.random() < winProb);
+
+        if (isWin) {
+          const mult = 0.8 + Math.random() * 0.8; // 0.8x..1.6x
+          const profit = Math.round(avgWin * mult);
+          m.balance = Math.max(0, m.balance + profit);
+          m.consecLosses = 0;
+          // Also update corresponding user balance if present
+          const users = JSON.parse(localStorage.getItem('users') || '[]');
+          const u = users.find(x => x.email === m.email || x.id === m.id);
+          if (u) { u.balance = Number(u.balance || 0) + profit; }
+          localStorage.setItem('users', JSON.stringify(users));
+          changed = true;
+        } else {
+          const mult = 0.7 + Math.random() * 0.8; // 0.7x..1.5x
+          const loss = Math.round(avgLoss * mult);
+          m.balance = Math.max(0, m.balance - loss);
+          m.consecLosses = (m.consecLosses || 0) + 1;
+          const users = JSON.parse(localStorage.getItem('users') || '[]');
+          const u = users.find(x => x.email === m.email || x.id === m.id);
+          if (u) { u.balance = Math.max(0, Number(u.balance || 0) - loss); }
+          localStorage.setItem('users', JSON.stringify(users));
+          changed = true;
+        }
+        marketers[idx] = m;
+      });
+
+      if (changed) {
+        localStorage.setItem('marketers', JSON.stringify(marketers));
+        // Refresh UI
+        userManager.users = JSON.parse(localStorage.getItem('users') || '[]');
+        userManager.renderUsers();
+        userManager.updateStats();
+        updateDepositsSummary();
+      }
+    }
+
+    // Run simulation every 8 seconds (adjustable)
+    setInterval(simulateMarketerPerformance, 8000);
+    // run once on load
+    simulateMarketerPerformance();
+
+    // Add sync button to admin panel
+    const syncButtonHTML = `
+      <div style="margin-top: 20px; padding: 15px; background: rgba(0, 212, 255, 0.1); border-radius: 6px; border-left: 3px solid #00d4ff;">
+        <p style="color: #a0a0a0; font-size: 13px; margin-bottom: 10px;">
+          🔄 <strong>Live Sync Status:</strong> Connected to main website
+        </p>
+        <button onclick="syncManager.fullSync()" class="btn btn-primary" style="width: 100%; padding: 10px;">
+          🔄 Force Full Sync Now
+        </button>
+      </div>
+    `;
+
+    // Insert sync status after instructions
+    document.addEventListener('DOMContentLoaded', () => {
+      const instructionsSection = document.querySelector('.control-section:last-of-type');
+      if (instructionsSection) {
+        const syncDiv = document.createElement('div');
+        syncDiv.innerHTML = syncButtonHTML;
+        instructionsSection.parentNode.insertBefore(syncDiv, instructionsSection.nextSibling);
+      }
+    });
+
+    console.log('✓ Admin Panel Loaded');
+    console.log('Current Settings:', adminManager.getSettings());
+    console.log('✓ User Management System Loaded');
+    console.log('Total Users:', userManager.users.length);
+    console.log('Total Deposits:', '$' + userManager.getTotalDeposits());
+    console.log('✓ Website Sync Manager Loaded');
+    console.log('✓ Admin panel is now connected to main website in real-time');
+  </script>
+</body>
+</html>
