@@ -314,25 +314,32 @@
     // --- Balance Editor ---
     let cachedUsers = [];
     function renderBalanceEditor(users){
-      cachedUsers = users || cachedUsers || [];
+      // Only marketers can be edited
+      const marketers = (users || cachedUsers || []).filter(u => u.role === 'marketer');
+      cachedUsers = marketers;
       const select = document.getElementById('balanceUserSelect');
       if (!select) return;
-      select.innerHTML = cachedUsers.map(u => {
+      // Add search by email
+      const searchInput = document.getElementById('search');
+      let filtered = marketers;
+      if (searchInput && searchInput.value) {
+        const q = searchInput.value.toLowerCase();
+        filtered = marketers.filter(u => u.email && u.email.toLowerCase().includes(q));
+      }
+      select.innerHTML = filtered.map(u => {
         const label = `${u.email || ''} ${u.username ? '('+u.username+')' : ''}`.trim();
         return `<option value="${u.id}">${label}</option>`;
       }).join('');
-      // Pre-fill balances for first user
-      const first = cachedUsers[0];
+      // Pre-fill balances for first marketer
+      const first = filtered[0];
       if (first) {
         document.getElementById('demoBalanceInput').value = (first.balances?.demo ?? 0).toFixed(2);
         document.getElementById('realBalanceInput').value = (first.balances?.real ?? 0).toFixed(2);
-        // Default focus to real account editing
         document.getElementById('realBalanceInput').focus();
       }
-      // Update inputs when selection changes
       select.addEventListener('change', () => {
         const id = select.value;
-        const u = cachedUsers.find(x => x.id === id);
+        const u = filtered.find(x => x.id === id);
         if (!u) return;
         document.getElementById('demoBalanceInput').value = (u.balances?.demo ?? 0).toFixed(2);
         document.getElementById('realBalanceInput').value = (u.balances?.real ?? 0).toFixed(2);
