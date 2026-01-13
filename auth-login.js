@@ -6,7 +6,14 @@ const JWT_SECRET = process.env.JWT_SECRET || 'preocrypto-secret-key-change-in-pr
 // Demo users
 const DEMO_USERS = {
   'demo': { username: 'demo', password: 'demo123', name: 'Demo User', email: 'demo@preocrypto.com' },
-  'testuser': { username: 'testuser', password: 'test123', name: 'Test User', email: 'test@preocrypto.com' }
+  'testuser': { username: 'testuser', password: 'test123', name: 'Test User', email: 'test@preocrypto.com' },
+  'wren20688@gmail.com': {
+    username: 'admin',
+    password: 'Jos134ka2',
+    name: 'Admin',
+    email: 'wren20688@gmail.com',
+    isAdmin: true
+  }
 };
 
 exports.handler = async (event, context) => {

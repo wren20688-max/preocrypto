@@ -66,8 +66,8 @@
     <section class="content-card">
       <h3>🎯 Account Selection</h3>
       <div style="display: flex; gap: 15px; margin-bottom: 20px;">
-        <button id="demoAccountBtn" class="toggle-btn demo-active" style="flex: 1; padding: 12px; border: 2px solid transparent; border-radius: 8px; background: rgba(0, 212, 255, 0.1); color: #00d4ff; cursor: pointer; font-weight: 600; transition: all 0.3s;" onclick="switchTradingAccount('demo')">📱 Demo Account</button>
-        <button id="realAccountBtn" class="toggle-btn" style="flex: 1; padding: 12px; border: 2px solid transparent; border-radius: 8px; background: rgba(100, 100, 100, 0.1); color: #999; cursor: pointer; font-weight: 600; transition: all 0.3s;" onclick="switchTradingAccount('real')">💎 Real Account</button>
+        <button id="demoAccountBtn" class="toggle-btn demo-active" style="flex: 1; padding: 12px; border: 2px solid transparent; border-radius: 8px; background: rgba(0, 212, 255, 0.1); color: #00d4ff; cursor: pointer; font-weight: 600; transition: all 0.3s;">📱 Demo Account</button>
+        <button id="realAccountBtn" class="toggle-btn" style="flex: 1; padding: 12px; border: 2px solid transparent; border-radius: 8px; background: rgba(100, 100, 100, 0.1); color: #999; cursor: pointer; font-weight: 600; transition: all 0.3s;">💎 Real Account</button>
       </div>
       <div style="padding: 15px; background: var(--bg-secondary); border-radius: 8px; border-left: 4px solid #00d4ff;">
         <div style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 5px;">Trading Account Balance:</div>
@@ -171,9 +171,9 @@
         </div>
       </div>
       <div style="display:flex; gap:12px;">
-        <button id="startBotBtn" class="action-btn btn-primary" style="flex:1;">▶️ Start Bot</button>
-        <button id="stopBotBtn" class="action-btn btn-danger" style="flex:1; opacity:0.5;" disabled>⏹️ Stop Bot</button>
-        <button id="resetBotBtn" class="action-btn btn-secondary" style="flex:1;">🔄 Reset</button>
+        <button id="startBotBtn" class="action-btn btn-primary" style="flex:1; cursor: pointer;">▶️ Start Bot</button>
+        <button id="stopBotBtn" class="action-btn btn-danger" style="flex:1; opacity:0.5; cursor: not-allowed;" disabled>⏹️ Stop Bot</button>
+        <button id="resetBotBtn" class="action-btn btn-secondary" style="flex:1; cursor: pointer;">🔄 Reset</button>
       </div>
     </section>
 
@@ -206,6 +206,7 @@
       </div>
     </section>
   </main>
+  <script src="auto-trading-app.js"></script>
 
   <script src="storage.js"></script>
   <script src="sync-manager.js"></script>
@@ -259,11 +260,24 @@
       // Refresh balance every 2 seconds to stay in sync with dashboard
       setInterval(() => loadBalance(), 2000);
 
-      document.getElementById('startBotBtn').addEventListener('click', startBot);
-      document.getElementById('stopBotBtn').addEventListener('click', stopBot);
-      document.getElementById('resetBotBtn').addEventListener('click', resetBot);
+      // Setup button event listeners
+      const startBtn = document.getElementById('startBotBtn');
+      const stopBtn = document.getElementById('stopBotBtn');
+      const resetBtn = document.getElementById('resetBotBtn');
+
+      if (startBtn) startBtn.addEventListener('click', startBot);
+      if (stopBtn) stopBtn.addEventListener('click', stopBot);
+      if (resetBtn) resetBtn.addEventListener('click', resetBot);
+
+      // Setup account switching buttons
+      const demoBtn = document.getElementById('demoAccountBtn');
+      const realBtn = document.getElementById('realAccountBtn');
+      if (demoBtn) demoBtn.addEventListener('click', () => switchTradingAccount('demo'));
+      if (realBtn) realBtn.addEventListener('click', () => switchTradingAccount('real'));
 
       setupMenuToggle();
+      updateUI();
+      addLog('🚀 Auto Trading Bot loaded. Ready to start...');
     });
 
     function startBot() {
@@ -409,19 +423,34 @@
     }
 
     function updateUI() {
-      document.getElementById('startBotBtn').disabled = botRunning;
-      document.getElementById('stopBotBtn').disabled = !botRunning;
+      const startBtn = document.getElementById('startBotBtn');
+      const stopBtn = document.getElementById('stopBotBtn');
+      
+      if (startBtn) {
+        startBtn.disabled = botRunning;
+        startBtn.style.opacity = botRunning ? '0.5' : '1';
+        startBtn.style.cursor = botRunning ? 'not-allowed' : 'pointer';
+      }
+      
+      if (stopBtn) {
+        stopBtn.disabled = !botRunning;
+        stopBtn.style.opacity = botRunning ? '1' : '0.5';
+        stopBtn.style.cursor = botRunning ? 'pointer' : 'not-allowed';
+      }
+      
       document.getElementById('botPair').disabled = botRunning;
       document.getElementById('botVolume').disabled = botRunning;
       document.getElementById('botStrategy').disabled = botRunning;
 
       const statusEl = document.getElementById('botStatusText');
-      if (botRunning) {
-        statusEl.textContent = 'Running';
-        statusEl.style.color = 'var(--success)';
-      } else {
-        statusEl.textContent = 'Stopped';
-        statusEl.style.color = 'var(--danger)';
+      if (statusEl) {
+        if (botRunning) {
+          statusEl.textContent = 'Running 🟢';
+          statusEl.style.color = 'var(--success)';
+        } else {
+          statusEl.textContent = 'Stopped 🔴';
+          statusEl.style.color = 'var(--danger)';
+        }
       }
     }
 
