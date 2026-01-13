@@ -389,11 +389,10 @@
     async function processWithdraw() {
       const amount = parseFloat(document.getElementById('withdrawAmount')?.value || 0);
       if (!amount || amount < 30) { alert('Minimum withdrawal is $30'); return; }
-      
       try {
+        if (typeof storage === 'undefined') throw new Error('storage is not defined');
         const user = await storage.getUser();
         if (!user) { alert('User not found'); return; }
-        
         const response = await fetch('/api/custom-withdrawal', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -403,20 +402,16 @@
             method: 'mpesa' 
           })
         });
-        
         if (!response.ok) {
           const err = await response.json().catch(() => ({error: 'Withdrawal failed'}));
           throw new Error(err.error || 'Withdrawal failed');
         }
-        
         const result = await response.json();
         const status = result.result?.status || 'pending';
         const msg = status === 'completed' 
           ? '✅ Withdrawal completed!' 
           : '⏳ Withdrawal request submitted (pending approval)';
         alert(msg + ' Amount: $' + amount.toFixed(2));
-        
-        // Clear input and refresh
         document.getElementById('withdrawAmount').value = '';
         loadTransactions();
       } catch (err) {

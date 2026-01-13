@@ -141,10 +141,15 @@
     <!-- Main Chart (Mobile Tab 1) -->
     <section id="chartTab" class="chart-container large chart-tab-content" style="min-height: 600px; display: flex; flex-direction: column;">
       <div class="chart-header">
-        <div style="display: flex; gap: 20px; align-items: center;">
+        <div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
           <div>
             <h3 id="chartTitle">EUR/USD</h3>
             <p style="margin: 0; font-size: 12px; color: var(--text-tertiary);">Euro vs US Dollar</p>
+          </div>
+          <!-- Account Switcher -->
+          <div style="border-left: 1px solid var(--border-color); padding-left: 20px; display: flex; gap: 10px;">
+            <button id="demoBtnDash" class="toggle-btn" style="padding: 6px 12px; border: 2px solid var(--secondary); border-radius: 6px; background: transparent; color: var(--secondary); cursor: pointer; font-weight: 600; transition: all 0.3s;">📱 Demo</button>
+            <button id="realBtnDash" class="toggle-btn" style="padding: 6px 12px; border: 2px solid transparent; border-radius: 6px; background: transparent; color: var(--text-secondary); cursor: pointer; font-weight: 600; transition: all 0.3s;">💎 Real</button>
           </div>
           <div style="border-left: 1px solid var(--border-color); padding-left: 20px;">
             <label style="font-size: 12px; color: var(--text-tertiary); display: block; margin-bottom: 6px;">Select Pair</label>
@@ -226,6 +231,7 @@
         </button>
         <!-- Chart Container -->
         <div id="mainChart" style="width: 100%; height: 100%;"></div>
+        <div id="mainChart" style="width: 100%; height: 600px; min-height: 300px; display: block;"></div>
       </div>
     </section>
 
