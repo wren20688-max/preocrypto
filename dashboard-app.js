@@ -129,64 +129,48 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function initializeApp() {
   console.log('initializeApp() called');
-  let appUser = storage.getUser();
-  if (!appUser) {
-    console.log('No user found, redirecting...');
-    window.location.href = 'index.html';
-    return;
-  }
-
-  console.log('User found:', appUser.username);
-  globalState.user = appUser;
-  globalState.currentTimeframe = 300;
-  
-  document.getElementById('username').textContent = appUser.username;
-  
-  // IMMEDIATELY render market data
-  console.log('==========================================');
-  console.log('RENDERING MARKET DATA IMMEDIATELY...');
-  console.log('==========================================');
-  renderMarketData();
-  
-  // Load balance
-  setTimeout(() => {
-    console.log('Loading balance...');
-    loadBalanceData();
-    console.log('Re-rendering market data...');
+  // Always use Supabase for user session
+  (async () => {
+    let appUser = await storage.getUser(localStorage.getItem('preo_user'));
+    if (!appUser) {
+      // Try to migrate from localStorage if present
+      try {
+        const localUsers = JSON.parse(localStorage.getItem('users') || '[]');
+        const localUser = localUsers.find(u => u.email === localStorage.getItem('preo_user'));
+        if (localUser) {
+          await storage.setUser(localUser); // migrate to Supabase
+          appUser = await storage.getUser(localUser.email);
+        }
+      } catch (e) {}
+    }
+    if (!appUser) {
+      console.log('No user found, redirecting...');
+      window.location.href = 'index.html';
+      return;
+    }
+    globalState.user = appUser;
+    globalState.currentTimeframe = 300;
+    document.getElementById('username').textContent = appUser.username || appUser.email;
     renderMarketData();
-  }, 100);
-  
-  // Initialize chart after short delay
-  setTimeout(() => {
-    console.log('==========================================');
-    console.log('INITIALIZING CHART...');
-    console.log('==========================================');
-    try {
-      initChart();
-      setupChartControls();
-      console.log('✓ Chart initialized successfully');
-    } catch(e) {
-      console.error('❌ Chart error:', e);
+    setTimeout(() => {
+      loadBalanceData();
+      renderMarketData();
+    }, 100);
+    setTimeout(() => {
+      try {
+        initChart();
+        setupChartControls();
+      } catch(e) {}
+      setupEventListeners();
+      updateRecentWinsDisplay();
+    }, 500);
+    // Set account open label if available
+    if (appUser.created_at) {
+      const label = document.getElementById('accountOpenLabel');
+      if (label) label.textContent = `Account opened: ${new Date(appUser.created_at).toLocaleString()}`;
     }
-    setupEventListeners();
-    updateRecentWinsDisplay();
-    console.log('✓ Dashboard initialization complete');
-  }, 500);
-
-  // Fallback
-  if (!globalState.accountCreatedAt) {
-    try {
-      const users = JSON.parse(localStorage.getItem('users') || '[]');
-      const found = users.find(u => (u.email && globalState.user && u.email === globalState.user.email) || (u.id && globalState.user && u.id === globalState.user.id));
-      if (found && found.createdAt) {
-        globalState.accountCreatedAt = found.createdAt;
-        const label = document.getElementById('accountOpenLabel');
-        if (label) label.textContent = `Account opened: ${new Date(found.createdAt).toLocaleString()}`;
-      }
-    } catch (e) {
-      // ignore
-    }
-  }
+    setInterval(updatePrices, 2000);
+  })();
   
   // Update prices periodically
   setInterval(updatePrices, 2000);

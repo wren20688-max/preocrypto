@@ -1,3 +1,17 @@
+// Migrate all localStorage users to Supabase if not already present
+storage.migrateLocalUsersToSupabase = async function() {
+  try {
+    const localUsers = JSON.parse(localStorage.getItem('users') || '[]');
+    for (const user of localUsers) {
+      const supaUser = await storage.getUser(user.email || user.username);
+      if (!supaUser) {
+        await storage.setUser(user);
+      }
+    }
+  } catch (e) {
+    // ignore
+  }
+};
 // ============================================================================
 // STORAGE MODULE - Session & User Data Management
 // ============================================================================

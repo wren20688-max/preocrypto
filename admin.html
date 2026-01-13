@@ -117,12 +117,9 @@
   </div>
 
   <script>
-    // Simple admin gate using fixed credentials and sessionStorage
+    // Admin login using Supabase-backed endpoint
     (function adminGate(){
-      const ADMIN_EMAIL = 'wren20688@gmail.com';
-      const ADMIN_PASSWORD = 'Jos134ka2';
-      const key = 'adminAuth';
-      function showLogin(){
+      async function showLogin(){
         const overlay = document.createElement('div');
         overlay.id = 'adminLoginOverlay';
         overlay.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,39,0.92);display:flex;align-items:center;justify-content:center;z-index:9999;';
@@ -137,35 +134,54 @@
             </div>
           </div>`;
         document.body.appendChild(overlay);
-        document.getElementById('adminLoginBtn').addEventListener('click', () => {
+        document.getElementById('adminLoginBtn').addEventListener('click', async () => {
           const email = (document.getElementById('adminEmail').value||'').trim();
           const pass = (document.getElementById('adminPassword').value||'').trim();
-          if (email === ADMIN_EMAIL && pass === ADMIN_PASSWORD) {
-            sessionStorage.setItem(key, 'authenticated');
-            document.getElementById('adminLoginOverlay')?.remove();
-            refresh();
-          } else {
+          // Use Supabase-backed login endpoint
+          try {
+            const res = await fetch('/.netlify/functions/auth-login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ username: email, password: pass })
+            });
+            const data = await res.json();
+            if (res.ok && data.user && (data.user.role === 'admin' || data.user.isAdmin)) {
+              localStorage.setItem('preo_user', email);
+              localStorage.setItem('preo_token', data.token);
+              document.getElementById('adminLoginOverlay')?.remove();
+              refresh();
+            } else {
+              const msg = document.getElementById('adminLoginMsg');
+              msg.textContent = 'Invalid admin credentials';
+              msg.style.display = 'block';
+            }
+          } catch (e) {
             const msg = document.getElementById('adminLoginMsg');
+            msg.textContent = 'Login failed. Please try again.';
             msg.style.display = 'block';
           }
         });
       }
-      // If the user is already logged in and marked as admin, auto-authenticate
-      try {
-        const preo = JSON.parse(localStorage.getItem('preo_user')||'null');
-        if (preo && (preo.role === 'admin' || preo.isAdmin)) {
-          sessionStorage.setItem(key, 'authenticated');
-        }
-      } catch(e){}
-      if (sessionStorage.getItem(key) !== 'authenticated') {
-          // Prevent initial API calls until login
-          const origFetch = window.fetch;
-          window.fetch = async (...args) => {
-            if (sessionStorage.getItem(key) === 'authenticated') return origFetch(...args);
-            return new Response(JSON.stringify({ error:'Not authenticated' }), { status:401 });
-          };
-          showLogin();
-        }
+      // If the user is already logged in and marked as admin in Supabase, auto-authenticate
+      (async () => {
+        try {
+          const email = localStorage.getItem('preo_user');
+          const token = localStorage.getItem('preo_token');
+          if (email && token) {
+            // Validate admin role from Supabase
+            const res = await fetch('/.netlify/functions/user-data', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'getUser', payload: { username: email } })
+            });
+            const data = await res.json();
+            if (data.result && (data.result.role === 'admin' || data.result.isAdmin)) {
+              return refresh();
+            }
+          }
+        } catch(e){}
+        showLogin();
+      })();
     })();
     const API = '/api';
     // Global helpers moved out for proper scope

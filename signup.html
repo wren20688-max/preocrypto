@@ -430,6 +430,10 @@
   <script src="config.js"></script>
 
   <script>
+    // Migrate all localStorage users to Supabase before signup
+    if (window.storage && typeof storage.migrateLocalUsersToSupabase === 'function') {
+      storage.migrateLocalUsersToSupabase();
+    }
     let currentStep = 1;
     const totalSteps = 5;
 
