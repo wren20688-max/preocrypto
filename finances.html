@@ -38,7 +38,7 @@
 
   <!-- Main Content -->
   <main class="main-container">
-    <h2 style="margin-bottom: var(--spacing-xl);">💰 Wallet & Funds</h2>
+    <h2 style="margin-bottom: var(--spacing-xl); color: var(--text-primary);">💰 Wallet & Funds</h2>
 
     <!-- Account Selector Tabs -->
     <section class="content-card" style="margin-bottom: var(--spacing-lg);">
@@ -46,9 +46,10 @@
         <button class="btn btn-primary account-tab active" onclick="switchAccount('demo')" id="tab-demo">📱 Demo Account</button>
         <button class="btn btn-secondary account-tab" onclick="switchAccount('real')" id="tab-real">💎 Real Account</button>
       </div>
-      <div style="padding: 20px; background: rgba(0, 212, 255, 0.05); border-radius: 8px; border: 1px solid rgba(0, 212, 255, 0.2);">
-        <div style="font-size: 14px; color: #a0a0a0; margin-bottom: 10px;">Current Balance</div>
-        <div style="font-size: 36px; font-weight: 700; background: linear-gradient(135deg, #0055ff, #00d4ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;" id="currentBalance">$10,000.00</div>
+      <div style="padding: 24px; background: linear-gradient(135deg, rgba(0, 85, 255, 0.08), rgba(0, 212, 255, 0.08)); border-radius: 12px; border: 1px solid var(--secondary); box-shadow: 0 4px 12px rgba(0, 212, 255, 0.1);">
+        <div style="font-size: 13px; color: var(--text-tertiary); margin-bottom: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;">Current Balance</div>
+        <div style="font-size: 42px; font-weight: 700; background: linear-gradient(135deg, #0055ff, #00d4ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 8px;" id="currentBalance">$10,000.00</div>
+        <div style="font-size: 12px; color: var(--text-tertiary);">Ready for trading</div>
       </div>
     </section>
 
@@ -75,28 +76,28 @@
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-lg); grid-column: 1 / -1; margin-bottom: var(--spacing-lg);">
       <!-- Quick Deposit -->
       <section class="content-card" id="depositSection">
-        <h3>📥 Quick Deposit</h3>
-        <p style="font-size: 12px; color: #a0a0a0; margin-bottom: 12px;">Add funds to <span id="accountTypeDeposit">Demo</span> Account</p>
+        <h3 style="color: var(--text-primary); margin-bottom: var(--spacing-md);">📥 Quick Deposit</h3>
+        <p style="font-size: 13px; color: var(--text-tertiary); margin-bottom: 16px; font-weight: 500;">Add funds to <span id="accountTypeDeposit" style="color: var(--secondary);">Demo</span> Account</p>
         <div class="form-group">
-          <label for="depositAmount">Amount (USD)</label>
-          <input type="number" id="depositAmount" placeholder="100.00" min="10" step="0.01">
-          <div class="form-helper">Minimum deposit: $10 (M-Pesa) / $25 (Crypto)</div>
+          <label for="depositAmount" style="color: var(--text-primary); font-weight: 600;">Amount (USD)</label>
+          <input type="number" id="depositAmount" placeholder="100.00" min="10" step="0.01" style="background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border-color); padding: 12px; border-radius: 8px; font-size: 14px;">
+          <div class="form-helper" style="color: var(--text-tertiary); font-size: 12px; margin-top: 6px;">Minimum deposit: $10 (M-Pesa) / $25 (Crypto)</div>
         </div>
-        <button class="btn btn-primary" style="width: 100%;" onclick="processDeposit()">
+        <button class="btn btn-primary" style="width: 100%; margin-top: 16px; font-weight: 600; padding: 12px;" onclick="processDeposit()">
           Add Funds
         </button>
       </section>
 
       <!-- Quick Withdraw -->
       <section class="content-card" id="withdrawSection">
-        <h3>📤 Quick Withdraw</h3>
-        <p style="font-size: 12px; color: #a0a0a0; margin-bottom: 12px;">Withdraw from <span id="accountTypeWithdraw">Demo</span> Account</p>
+        <h3 style="color: var(--text-primary); margin-bottom: var(--spacing-md);">📤 Quick Withdraw</h3>
+        <p style="font-size: 13px; color: var(--text-tertiary); margin-bottom: 16px; font-weight: 500;">Withdraw from <span id="accountTypeWithdraw" style="color: var(--success);">Demo</span> Account</p>
         <div class="form-group">
-          <label for="withdrawAmount">Amount (USD)</label>
-          <input type="number" id="withdrawAmount" placeholder="100.00" min="30" step="0.01">
-          <div class="form-helper">Minimum withdrawal: $30</div>
+          <label for="withdrawAmount" style="color: var(--text-primary); font-weight: 600;">Amount (USD)</label>
+          <input type="number" id="withdrawAmount" placeholder="100.00" min="30" step="0.01" style="background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border-color); padding: 12px; border-radius: 8px; font-size: 14px;">
+          <div class="form-helper" style="color: var(--text-tertiary); font-size: 12px; margin-top: 6px;">Minimum withdrawal: $30</div>
         </div>
-        <button class="btn btn-secondary" style="width: 100%;" onclick="processWithdraw()">
+        <button class="btn btn-secondary" style="width: 100%; margin-top: 16px; font-weight: 600; padding: 12px;" onclick="processWithdraw()">
           Request Withdrawal
         </button>
       </section>
@@ -104,31 +105,31 @@
 
     <!-- Payment Methods -->
     <section class="content-card" style="grid-column: 1 / -1;">
-      <h3>💳 Deposit Methods</h3>
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--spacing-lg); margin-top: var(--spacing-lg);">
+      <h3 style="color: var(--text-primary); margin-bottom: 24px; font-size: 20px;">💳 Deposit Methods</h3>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px;">
         
-        <div class="card" style="text-align: center; cursor: pointer; transition: all 0.3s;" onclick="selectPaymentMethod('mpesa', this)">
-          <div style="font-size: 48px; margin-bottom: var(--spacing-md);">📱</div>
-          <h4 style="margin: 0 0 var(--spacing-sm) 0;">M-Pesa</h4>
-          <p style="margin: 0; font-size: 12px; color: var(--text-tertiary);">Instant mobile money</p>
+        <div class="payment-method-card" onclick="selectPaymentMethod('mpesa', this)">
+          <div style="font-size: 48px; margin-bottom: 14px; display: flex; justify-content: center;">📱</div>
+          <h4 style="margin: 0 0 6px 0; color: var(--text-primary); font-weight: 700; font-size: 14px; text-align: center;">M-Pesa</h4>
+          <p style="margin: 0; font-size: 12px; color: var(--text-tertiary); text-align: center; line-height: 1.4;">Instant mobile money</p>
         </div>
 
-        <div class="card" style="text-align: center; cursor: pointer; transition: all 0.3s;" onclick="selectPaymentMethod('card', this)">
-          <div style="font-size: 48px; margin-bottom: var(--spacing-md);">💳</div>
-          <h4 style="margin: 0 0 var(--spacing-sm) 0;">Credit Card</h4>
-          <p style="margin: 0; font-size: 12px; color: var(--text-tertiary);">Visa/Mastercard</p>
+        <div class="payment-method-card" onclick="selectPaymentMethod('card', this)">
+          <div style="font-size: 48px; margin-bottom: 14px; display: flex; justify-content: center;">💳</div>
+          <h4 style="margin: 0 0 6px 0; color: var(--text-primary); font-weight: 700; font-size: 14px; text-align: center;">Credit Card</h4>
+          <p style="margin: 0; font-size: 12px; color: var(--text-tertiary); text-align: center; line-height: 1.4;">Visa/Mastercard</p>
         </div>
 
-        <div class="card" style="text-align: center; cursor: pointer; transition: all 0.3s;" onclick="selectPaymentMethod('bank', this)">
-          <div style="font-size: 48px; margin-bottom: var(--spacing-md);">🏦</div>
-          <h4 style="margin: 0 0 var(--spacing-sm) 0;">Bank Transfer</h4>
-          <p style="margin: 0; font-size: 12px; color: var(--text-tertiary);">Direct transfer</p>
+        <div class="payment-method-card" onclick="selectPaymentMethod('bank', this)">
+          <div style="font-size: 48px; margin-bottom: 14px; display: flex; justify-content: center;">🏦</div>
+          <h4 style="margin: 0 0 6px 0; color: var(--text-primary); font-weight: 700; font-size: 14px; text-align: center;">Bank Transfer</h4>
+          <p style="margin: 0; font-size: 12px; color: var(--text-tertiary); text-align: center; line-height: 1.4;">Direct transfer</p>
         </div>
 
-        <div class="card" style="text-align: center; cursor: pointer; transition: all 0.3s;" onclick="selectPaymentMethod('crypto', this)">
-          <div style="font-size: 48px; margin-bottom: var(--spacing-md);">₿</div>
-          <h4 style="margin: 0 0 var(--spacing-sm) 0;">Cryptocurrency</h4>
-          <p style="margin: 0; font-size: 12px; color: var(--text-tertiary);">BTC, ETH, USDT</p>
+        <div class="payment-method-card" onclick="selectPaymentMethod('crypto', this)">
+          <div style="font-size: 48px; margin-bottom: 14px; display: flex; justify-content: center;">₿</div>
+          <h4 style="margin: 0 0 6px 0; color: var(--text-primary); font-weight: 700; font-size: 14px; text-align: center;">Crypto</h4>
+          <p style="margin: 0; font-size: 12px; color: var(--text-tertiary); text-align: center; line-height: 1.4;">BTC, ETH, USDT</p>
         </div>
 
       </div>
@@ -157,7 +158,7 @@
             <label>M-Pesa Phone Number</label>
             <input type="tel" id="mpesaPhone" placeholder="+254712345678">
           </div>
-          <p style="color:#b0b8c1; font-size:12px; margin:10px 0;">You will receive an M-Pesa prompt to complete the payment</p>
+          <p style="color: var(--text-tertiary); font-size:12px; margin:10px 0;">You will receive an M-Pesa prompt to complete the payment</p>
         </div>
 
         <div id="cardForm" style="display:none;">
@@ -213,7 +214,7 @@
     <div class="modal-content" style="max-width:400px;">
       <button class="modal-close">&times;</button>
       <h2>Enter M-Pesa PIN</h2>
-      <p style="color:#b0b8c1; margin:10px 0;">A prompt has been sent to your phone. Enter your M-Pesa PIN to complete the transaction.</p>
+      <p style="color: var(--text-tertiary); margin:10px 0;">A prompt has been sent to your phone. Enter your M-Pesa PIN to complete the transaction.</p>
       <div class="form-group">
         <input type="password" id="mpesaPin" placeholder="••••" maxlength="4">
       </div>
@@ -385,19 +386,42 @@
       window.location.href = 'payment-methods.html?' + params.toString();
     }
 
-    function processWithdraw() {
+    async function processWithdraw() {
       const amount = parseFloat(document.getElementById('withdrawAmount')?.value || 0);
       if (!amount || amount < 30) { alert('Minimum withdrawal is $30'); return; }
-      (window.apiFetch || fetch)('/api/payment/withdrawal', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('preo_token')||'') },
-        body: JSON.stringify({ amount, method: 'mpesa', account: currentAccount === 'real' ? 'real' : 'real' })
-      }).then(async res => {
-        if (!res.ok) { const d = await res.json().catch(()=>({error:'Withdrawal failed'})); throw new Error(d.error); }
-        return res.json();
-      }).then(() => {
-        alert('Withdrawal request of $' + amount.toFixed(2) + ' submitted!');
-      }).catch(err => alert('Withdrawal error: ' + err.message));
+      
+      try {
+        const user = await storage.getUser();
+        if (!user) { alert('User not found'); return; }
+        
+        const response = await fetch('/api/custom-withdrawal', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            username: user.username,
+            amount, 
+            method: 'mpesa' 
+          })
+        });
+        
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({error: 'Withdrawal failed'}));
+          throw new Error(err.error || 'Withdrawal failed');
+        }
+        
+        const result = await response.json();
+        const status = result.result?.status || 'pending';
+        const msg = status === 'completed' 
+          ? '✅ Withdrawal completed!' 
+          : '⏳ Withdrawal request submitted (pending approval)';
+        alert(msg + ' Amount: $' + amount.toFixed(2));
+        
+        // Clear input and refresh
+        document.getElementById('withdrawAmount').value = '';
+        loadTransactions();
+      } catch (err) {
+        alert('Withdrawal error: ' + err.message);
+      }
     }
 
     function selectPaymentMethod(method, element) {
@@ -444,75 +468,64 @@
       updateAccountDisplay();
     }
 
-    function loadTransactions() {
+    async function loadTransactions() {
       const el = document.getElementById('transactionList');
       if (!el) return;
-      const token = localStorage.getItem('preo_token') || '';
-      let transactions = [];
+      
+      try {
+        const user = await storage.getUser();
+        if (!user) return;
+        
+        // Get all transactions from storage
+        const transactions = await storage.getTransactions() || [];
+        
+        // Format transactions for display
+        const formatted = transactions
+          .filter(t => t.username === user.username)
+          .map(t => {
+            const method = t.method || t.pair || t.type;
+            let amountStr = '';
+            if (typeof t.amount === 'number') {
+              amountStr = (t.type === 'deposit' ? '+' : t.type === 'withdrawal' ? '-' : '') + '$' + Math.abs(t.amount).toFixed(2);
+            }
+            if (!amountStr && typeof t.profit_loss === 'number') {
+              amountStr = (t.profit_loss >= 0 ? '+' : '-') + '$' + Math.abs(t.profit_loss).toFixed(2);
+            }
+            return {
+              date: new Date(t.created_at || t.timestamp).toISOString().split('T')[0],
+              type: t.type.replace('_', ' ').toUpperCase(),
+              method: method,
+              amount: amountStr || '$0.00',
+              status: (t.status || 'completed').charAt(0).toUpperCase() + (t.status || 'completed').slice(1)
+            };
+          })
+          .sort((a, b) => new Date(b.date) - new Date(a.date));
 
-      fetch('/api/transactions?limit=100', { headers: { 'Authorization': 'Bearer ' + token } })
-        .then(r => r.ok ? r.json() : [])
-        .then(serverTx => {
-          if (Array.isArray(serverTx)) {
-            transactions = transactions.concat(serverTx.map(t => {
-              const method = t.method || t.pair || t.type;
-              let amountStr = '';
-              if (typeof t.amount === 'number') amountStr = (t.type === 'deposit' ? '+' : t.type === 'withdrawal' ? '-' : '') + '$' + Math.abs(t.amount).toFixed(2);
-              if (!amountStr && typeof t.pnl === 'number') amountStr = (t.pnl >= 0 ? '+' : '-') + '$' + Math.abs(t.pnl).toFixed(2);
-              return {
-                date: new Date(t.timestamp).toISOString().split('T')[0],
-                type: t.type.replace('_', ' ').toUpperCase(),
-                method: method,
-                amount: amountStr || '$0.00',
-                status: (t.status || 'Completed').toString()
-              };
-            }));
-          }
+        if (formatted.length === 0) {
+          el.innerHTML = `
+            <div style="padding: 30px; text-align: center; color: var(--text-secondary);">
+              <p>No transactions yet. Start trading to see your activity here.</p>
+            </div>`;
+          return;
+        }
 
-          // Add local closed trades
-          const tradesData = localStorage.getItem('preo_trades');
-          if (tradesData) {
-            try {
-              const trades = JSON.parse(tradesData);
-              transactions = transactions.concat(trades
-                .filter(trade => trade.status === 'closed')
-                .map(trade => ({
-                  date: new Date(trade.timestamp).toISOString().split('T')[0],
-                  type: 'TRADE CLOSED',
-                  method: trade.pair,
-                  amount: (trade.pnl >= 0 ? '+' : '-') + '$' + Math.abs(trade.pnl || 0).toFixed(2),
-                  status: 'Completed'
-                })));
-            } catch (e) {}
-          }
-
-          transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-          if (transactions.length === 0) {
-            el.innerHTML = `
-              <div style="padding: 30px; text-align: center; color: var(--text-secondary);">
-                <p>No transactions yet. Start trading to see your activity here.</p>
-                <button onclick=\"loadDemoFinanceTransactions()\" style=\"margin-top: 15px; padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;\">Load Demo Data</button>
-              </div>`;
-            return;
-          }
-
-          el.innerHTML = transactions.map(t => `
-            <div style="padding: var(--spacing-md); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
-              <div>
-                <strong>${t.type}</strong>
-                <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">${t.date} • ${t.method}</div>
+        el.innerHTML = formatted.map(t => `
+          <div style="padding: var(--spacing-md); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <strong>${t.type}</strong>
+              <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">${t.date} • ${t.method}</div>
+            </div>
+            <div style="text-align: right;">
+              <strong style="color: ${t.amount.startsWith('+') ? 'var(--success)' : 'var(--danger)'}">${t.amount}</strong>
+              <div style="font-size: 12px; color: ${t.status === 'Completed' ? 'var(--success)' : t.status === 'Pending' ? '#ffa500' : 'var(--danger)'}; margin-top: 4px;">
+                ${t.status === 'Completed' ? '✓' : t.status === 'Pending' ? '⏳' : '✗'} ${t.status}
               </div>
-              <div style="text-align: right;">
-                <strong style="color: ${t.amount.startsWith('+') ? 'var(--success)' : 'var(--danger)'}">${t.amount}</strong>
-                <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 4px;">${t.status}</div>
-                ${t.localAmount ? `<div style="font-size: 12px; color: var(--text-tertiary);">${t.localCurrency} ${t.localAmount}</div>` : ''}
-              </div>
-            </div>`).join('');
-        })
-        .catch(() => {
-          el.innerHTML = '<div class="empty-state">Failed to load transactions.</div>';
-        });
+            </div>
+          </div>`).join('');
+      } catch (err) {
+        console.error('Transaction load error:', err);
+        el.innerHTML = '<div class="empty-state">Failed to load transactions.</div>';
+      }
     }
 
     function setupMenuToggle() {

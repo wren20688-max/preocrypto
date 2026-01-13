@@ -536,8 +536,8 @@ function createChartSeries(chart, chartType) {
 function startChartUpdates() {
   if (chartUpdateInterval) clearInterval(chartUpdateInterval);
   
-  const updateFrequency = 1000;
-  const timeframeSeconds = globalState.currentTimeframe;
+  const updateFrequency = 500; // Update every 500ms for smooth animations
+  const timeframeSeconds = Math.max(1, globalState.currentTimeframe || 5);
   
   let currentPrice = window.lastChartPrice || 1.0950;
   let candleOpen = currentPrice;
@@ -549,21 +549,27 @@ function startChartUpdates() {
   const alignedNow = nowTs - (nowTs % timeframeSeconds);
   let candleStartTime = Math.max(alignedNow, (window.lastHistoricalTime || 0) + timeframeSeconds);
   
-  console.log(`🔴 LIVE UPDATES starting | Starting at time: ${candleStartTime} | Price: ${currentPrice.toFixed(4)}`);
+  console.log(`🔴 LIVE UPDATES starting | Starting at time: ${candleStartTime} | Price: ${currentPrice.toFixed(4)} | Timeframe: ${timeframeSeconds}s`);
   
   const updateFunction = () => {
     try {
-      if (!globalState.chart || !activeSeries.length) return;
+      if (!globalState.chart || !activeSeries.length) {
+        console.warn('Chart or series not available, keeping interval alive');
+        return; // Keep the interval alive even if chart is momentarily unavailable
+      }
       
       const series = activeSeries[0];
       const nowTs = Math.floor(Date.now() / 1000);
       const alignedTime = nowTs - (nowTs % timeframeSeconds);
       
-      // EXTREME volatility
-      const microVolatility = 0.0050 + Math.random() * 0.0070;
+      // Adaptive volatility based on timeframe
+      // Longer timeframes should have more volatile moves
+      const tfVolatilityFactor = Math.sqrt(timeframeSeconds / 5); // sqrt for smoother scaling
+      const microVolatility = (0.0020 + Math.random() * 0.0050) * tfVolatilityFactor;
       const direction = Math.random() > 0.5 ? 1 : -1;
       currentPrice += direction * microVolatility;
       
+      // Keep price in reasonable range
       if (currentPrice < 1.0800) currentPrice = 1.0800 + Math.random() * 0.005;
       if (currentPrice > 1.1200) currentPrice = 1.1200 - Math.random() * 0.005;
       
@@ -602,14 +608,16 @@ function startChartUpdates() {
       
     } catch(e) {
       console.error('Update error (continuing):', e.message);
+      // Continue running even on error
     }
   };
   
+  // Start the interval - this will run INDEFINITELY until explicitly cleared
   chartUpdateInterval = setInterval(updateFunction, updateFrequency);
   updateFunction(); // Run immediately
   
-  console.log(`✓ CONTINUOUS updates running | Extreme volatility | Updates every ${updateFrequency}ms`);
-  console.log(`⚡ Chart will run FOREVER - go to sleep! 💤`);
+  console.log(`✓ CONTINUOUS updates STARTED | Updates every ${updateFrequency}ms | Timeframe: ${timeframeSeconds}s`);
+  console.log(`✓ Chart will run FOREVER regardless of timeframe changes 🚀`);
 }
 
 // Simple per-symbol simulation state to create trending moves

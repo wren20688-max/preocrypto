@@ -245,19 +245,19 @@
       addLog('Switched to ' + (account === 'demo' ? 'Demo' : 'Real') + ' account for trading');
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
       if (!storage.isLoggedIn()) {
         window.location.href = 'index.html';
         return;
       }
 
-      const user = storage.getUser();
+      const user = await storage.getUser();
       if (user) {
-        loadBalance();
+        await loadBalance();
       }
 
       // Refresh balance every 2 seconds to stay in sync with dashboard
-      setInterval(loadBalance, 2000);
+      setInterval(() => loadBalance(), 2000);
 
       document.getElementById('startBotBtn').addEventListener('click', startBot);
       document.getElementById('stopBotBtn').addEventListener('click', stopBot);
@@ -293,7 +293,7 @@
       simulateBotTrade();
     }
 
-    function simulateBotTrade() {
+    async function simulateBotTrade() {
       if (!botRunning) return;
 
       const pair = document.getElementById('botPair').value;
@@ -306,7 +306,12 @@
       }
       const strategy = document.getElementById('botStrategy').value;
       const tradeType = Math.random() > 0.5 ? 'BUY' : 'SELL';
-      const currentBalance = storage.getBalance(tradingAccount);
+      
+      // Get current balance asynchronously
+      const user = await storage.getUser();
+      const currentBalance = tradingAccount === 'real' 
+        ? (user?.real_balance || 0) 
+        : (user?.demo_balance || 10000);
 
       addLog('[' + strategy + '] Signal generated - ' + tradeType + ' ' + volume + ' ' + pair);
 
@@ -365,7 +370,7 @@
         botStats.trades++;
         botStats.pnl += profit;
         updateStats();
-        loadBalance();
+        await loadBalance();
 
         if (botRunning && botStats.trades < parseInt(document.getElementById('botMaxTrades').value)) {
           setTimeout(simulateBotTrade, 3000);
@@ -420,25 +425,32 @@
       }
     }
 
-    function loadBalance() {
-      let balance;
-      const user = storage.getUser();
-      
-      // FOR MARKETERS: Load from marketers array (this is the key fix!)
-      if (user && tradingAccount === 'real') {
-        const marketers = JSON.parse(localStorage.getItem('marketers') || '[]');
-        const marketer = marketers.find(m => m.email === user.email);
-        if (marketer && marketer.isMarketer) {
-          balance = marketer.balance || 0;
+    async function loadBalance() {
+      try {
+        const user = await storage.getUser();
+        let balance = 0;
+        
+        // FOR MARKETERS: Load from Supabase (using backend API)
+        if (user) {
+          const userData = await storage.getUser();
+          if (tradingAccount === 'real') {
+            balance = userData.real_balance || 0;
+          } else {
+            balance = userData.demo_balance || 10000;
+          }
         } else {
-          balance = storage.getBalance(tradingAccount);
+          balance = tradingAccount === 'real' ? 0 : 10000;
         }
-      } else {
-        balance = storage.getBalance(tradingAccount);
+        
+        document.getElementById('balance').textContent = '$' + parseFloat(balance).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        document.getElementById('tradingAccountBalance').textContent = '$' + parseFloat(balance).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+      } catch (err) {
+        console.error('Balance load error:', err);
+        // Fallback to default
+        const defaultBalance = tradingAccount === 'real' ? 0 : 10000;
+        document.getElementById('balance').textContent = '$' + defaultBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        document.getElementById('tradingAccountBalance').textContent = '$' + defaultBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
       }
-      
-      document.getElementById('balance').textContent = '$' + parseFloat(balance).toLocaleString('en-US', {minimumFractionDigits: 2});
-      document.getElementById('tradingAccountBalance').textContent = '$' + parseFloat(balance).toLocaleString('en-US', {minimumFractionDigits: 2});
     }
 
     function setupMenuToggle() {
