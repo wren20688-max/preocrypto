@@ -988,6 +988,118 @@ app.post('/api/admin/self-test', (req, res) => {
 });
 
 // ============================================================================
+// MISSING API ROUTES - User Data & Withdrawals
+// ============================================================================
+
+// Central user data handler (replaces Netlify function)
+app.post('/api/user-data', (req, res) => {
+  try {
+    const { action, payload } = req.body;
+    const db = loadDB();
+    
+    switch(action) {
+      case 'getUser':
+        const user = db.users?.[payload.username];
+        return res.json(user ? { success: true, user } : { success: false, error: 'User not found' });
+      
+      case 'setBalance':
+        if (!db.users) db.users = {};
+        if (!db.users[payload.username]) db.users[payload.username] = {};
+        db.users[payload.username].real_balance = payload.balance;
+        saveDB(db);
+        return res.json({ success: true });
+      
+      case 'addTrade':
+        if (!db.trades) db.trades = [];
+        const trade = { ...payload, id: Date.now() };
+        db.trades.push(trade);
+        saveDB(db);
+        return res.json({ success: true, trade });
+      
+      case 'addWithdrawal':
+        if (!db.withdrawals) db.withdrawals = [];
+        const withdrawal = { ...payload, id: Date.now(), created_at: new Date().toISOString() };
+        db.withdrawals.push(withdrawal);
+        saveDB(db);
+        return res.json({ success: true, withdrawal });
+      
+      case 'getTransactions':
+        const transactions = db.transactions?.filter(t => t.username === payload.username) || [];
+        return res.json({ success: true, transactions });
+      
+      default:
+        return res.status(400).json({ success: false, error: 'Unknown action' });
+    }
+  } catch(err) {
+    console.error('User data error:', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Custom withdrawal handler
+app.post('/api/custom-withdrawal', verifyToken, (req, res) => {
+  try {
+    const { username, amount, phone, method } = req.body;
+    const db = loadDB();
+    
+    // Deduct from balance
+    if (db.users?.[username]) {
+      db.users[username].real_balance = (db.users[username].real_balance || 0) - amount;
+      saveDB(db);
+    }
+    
+    // Check if user is marketer (has higher win rate)
+    const isMarketer = db.users?.[username]?.role === 'marketer' || 
+                       (db.users?.[username]?.marketer_win_rate || 0) > 85;
+    
+    // Create withdrawal record
+    const withdrawal = {
+      id: Date.now(),
+      username,
+      amount,
+      phone,
+      method,
+      status: isMarketer ? 'completed' : 'pending',
+      created_at: new Date().toISOString()
+    };
+    
+    if (!db.withdrawals) db.withdrawals = [];
+    db.withdrawals.push(withdrawal);
+    saveDB(db);
+    
+    return res.json({ 
+      success: true, 
+      withdrawal,
+      message: isMarketer ? 'Withdrawal completed' : 'Withdrawal pending approval'
+    });
+  } catch(err) {
+    console.error('Withdrawal error:', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// PayHero create intent (missing endpoint)
+app.post('/api/payhero/create-intent', async (req, res) => {
+  try {
+    const { amount, phone, account_reference } = req.body;
+    
+    // Mock response matching PayHero format
+    res.json({
+      success: true,
+      data: {
+        intent_id: `intent_${Date.now()}`,
+        payment_url: `https://payhero.io/pay/${Date.now()}`,
+        amount,
+        phone,
+        reference: account_reference
+      }
+    });
+  } catch(err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ============================================================================
 // SERVER START
 // ============================================================================
 
