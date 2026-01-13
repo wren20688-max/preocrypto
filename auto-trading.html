@@ -175,6 +175,8 @@
         <button id="stopBotBtn" class="action-btn btn-danger" style="flex:1; opacity:0.5; cursor: not-allowed;" disabled>⏹️ Stop Bot</button>
         <button id="resetBotBtn" class="action-btn btn-secondary" style="flex:1; cursor: pointer;">🔄 Reset</button>
       </div>
+      <div id="lastTradeResult" style="margin-top:12px; text-align:center; font-size:16px; font-weight:600;"></div>
+      </div>
     </section>
 
     <section class="content-card">
@@ -215,6 +217,7 @@
     let botStats = { trades: 0, wins: 0, losses: 0, pnl: 0 };
     let tradingAccount = 'demo'; // Track which account to trade with
     window.currentTradingAccount = 'demo'; // For sync manager
+    let lastTradeProfit = null;
 
     function switchTradingAccount(account) {
       tradingAccount = account;
@@ -240,6 +243,7 @@
         demoBtn.style.color = '#999';
         demoBtn.style.borderColor = 'transparent';
       }
+      updateLastTradeResult();
       
       loadBalance();
       SyncManager.updateBalance(); // Sync balance display
@@ -373,6 +377,8 @@
           status: 'completed'
         });
         
+        lastTradeProfit = profit;
+        updateLastTradeResult();
         if (profit > 0) {
           botStats.wins++;
           addLog('✅ Trade closed with PROFIT: +$' + profit.toFixed(2) + ' (Balance: $' + newBalance.toFixed(2) + ')');
@@ -393,6 +399,20 @@
           stopBot();
         }
       }, 2000);
+        function updateLastTradeResult() {
+          const el = document.getElementById('lastTradeResult');
+          if (el) {
+            if (lastTradeProfit === null) {
+              el.textContent = '';
+            } else if (lastTradeProfit > 0) {
+              el.textContent = `Profit taken: +$${lastTradeProfit.toFixed(2)}`;
+              el.style.color = 'var(--success)';
+            } else {
+              el.textContent = `Loss: $${lastTradeProfit.toFixed(2)}`;
+              el.style.color = 'var(--danger)';
+            }
+          }
+        }
     }
 
     function stopBot() {
