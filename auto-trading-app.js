@@ -2,14 +2,24 @@
 
 let currentAccount = 'demo';
 let demoBalance = 10000;
-let realBalance = 500;
+let realBalance = 0;
 let botRunning = false;
+
 
 function updateAccountUI() {
     document.getElementById('demoAccountBtn').classList.toggle('demo-active', currentAccount === 'demo');
     document.getElementById('realAccountBtn').classList.toggle('demo-active', currentAccount === 'real');
     document.getElementById('tradingAccountBalance').textContent =
         currentAccount === 'demo' ? `$${demoBalance.toLocaleString()}` : `$${realBalance.toLocaleString()}`;
+}
+
+async function loadBalances() {
+    // Get username from localStorage/session (assume preo_user is set)
+    const user = localStorage.getItem('preo_user');
+    if (!user) return;
+    demoBalance = await storage.getBalance(user, 'demo');
+    realBalance = await storage.getBalance(user, 'real');
+    updateAccountUI();
 }
 
 function switchTradingAccount(type) {
@@ -55,5 +65,6 @@ if (toggleMode) {
     }
 }
 
-updateAccountUI();
+
+loadBalances();
 setBotStatus(false);

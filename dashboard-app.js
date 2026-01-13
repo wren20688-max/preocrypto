@@ -272,42 +272,16 @@ async function loadUserProfileCreatedAt() {
 // ============================================================================
 
 function loadBalanceData() {
-  // Check if current user is a marketer
+  // Load balances from Supabase for the logged-in user
   let currentUser = globalState.user;
-  const marketers = JSON.parse(localStorage.getItem('marketers') || '[]');
-  const marketer = marketers.find(m => m.email === currentUser.email);
-  
-  let demoData, realData;
-  
-  if (marketer && marketer.isMarketer) {
-    // Marketer: Load balance from marketer account (live trading only)
-    realData = {
-      balance: marketer.balance,
-      equity: marketer.balance,
-      pnl: 0,
-      positions: 0
-    };
-    demoData = { balance: 10000, equity: 10000, pnl: 0, positions: 0 };
-    
-    // Store marketer data
-    localStorage.setItem('accountData_real', JSON.stringify(realData));
-    localStorage.setItem('accountData_demo', JSON.stringify(demoData));
-  } else {
-    // Regular user: Load from localStorage
-    demoData = JSON.parse(localStorage.getItem('accountData_demo') || '{"balance":10000,"equity":10000,"pnl":0,"positions":0}');
-    realData = JSON.parse(localStorage.getItem('accountData_real') || '{"balance":0,"equity":0,"pnl":0,"positions":0}');
-    
-    // Ensure real account always starts at 0 if not explicitly set by deposits/trades
-    if (!localStorage.getItem('accountData_real')) {
-      localStorage.setItem('balance_real', '0');
-    }
-  }
-  
-  globalState.accountBalances.demo = demoData;
-  globalState.accountBalances.real = realData;
-  
-  // Display current account data
-  updateAccountDisplay();
+  if (!currentUser || !currentUser.username) return;
+  (async () => {
+    const demoBalance = await storage.getBalance(currentUser.username, 'demo');
+    const realBalance = await storage.getBalance(currentUser.username, 'real');
+    globalState.accountBalances.demo = { balance: demoBalance, equity: demoBalance, pnl: 0, positions: 0 };
+    globalState.accountBalances.real = { balance: realBalance, equity: realBalance, pnl: 0, positions: 0 };
+    updateAccountDisplay();
+  })();
 }
 // ============================================================================
 // CHART INITIALIZATION & REALTIME FEED
@@ -1746,6 +1720,58 @@ function setupEventListeners() {
   // Restore theme preference
   if (localStorage.getItem('theme') === 'light') {
     document.body.classList.add('light-mode');
+  }
+
+  // Account switching (Demo/Real)
+  let currentAccount = localStorage.getItem('tradingAccount') || 'demo';
+  window.currentTradingAccount = currentAccount;
+  
+  function switchDashboardAccount(account) {
+    currentAccount = account;
+    window.currentTradingAccount = account;
+    localStorage.setItem('tradingAccount', account);
+    
+    const demoBtn = document.getElementById('demoBtnDash');
+    const realBtn = document.getElementById('realBtnDash');
+    
+    if (demoBtn && realBtn) {
+      if (account === 'demo') {
+        demoBtn.style.borderColor = 'var(--secondary)';
+        demoBtn.style.color = 'var(--secondary)';
+        demoBtn.style.background = 'transparent';
+        
+        realBtn.style.borderColor = 'transparent';
+        realBtn.style.color = 'var(--text-secondary)';
+        realBtn.style.background = 'transparent';
+      } else {
+        realBtn.style.borderColor = 'var(--warning)';
+        realBtn.style.color = 'var(--warning)';
+        realBtn.style.background = 'rgba(255, 215, 0, 0.1)';
+        
+        demoBtn.style.borderColor = 'transparent';
+        demoBtn.style.color = 'var(--text-secondary)';
+        demoBtn.style.background = 'transparent';
+      }
+    }
+    
+    location.reload(); // Reload to update balances
+  }
+  
+  // Setup account switcher buttons
+  document.getElementById('demoBtnDash')?.addEventListener('click', () => switchDashboardAccount('demo'));
+  document.getElementById('realBtnDash')?.addEventListener('click', () => switchDashboardAccount('real'));
+  
+  // Initialize account display
+  const demoBtnInit = document.getElementById('demoBtnDash');
+  const realBtnInit = document.getElementById('realBtnDash');
+  if (currentAccount === 'demo' && demoBtnInit && realBtnInit) {
+    demoBtnInit.style.borderColor = 'var(--secondary)';
+    demoBtnInit.style.color = 'var(--secondary)';
+  } else if (currentAccount === 'real' && realBtnInit && demoBtnInit) {
+    realBtnInit.style.borderColor = 'var(--warning)';
+    realBtnInit.style.color = 'var(--warning)';
+    realBtnInit.style.background = 'rgba(255, 215, 0, 0.1)';
+    demoBtnInit.style.color = 'var(--text-secondary)';
   }
   
   // Indicator checkboxes

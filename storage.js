@@ -2,7 +2,7 @@
 // STORAGE MODULE - Session & User Data Management
 // ============================================================================
 
-const API_URL = '/api/user-data';
+const API_URL = '/.netlify/functions/user-data';
 const storage = {
   // User session management
   getUser: async function(username) {
