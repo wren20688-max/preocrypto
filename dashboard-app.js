@@ -129,48 +129,64 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function initializeApp() {
   console.log('initializeApp() called');
-  // Always use Supabase for user session
-  (async () => {
-    let appUser = await storage.getUser(localStorage.getItem('preo_user'));
-    if (!appUser) {
-      // Try to migrate from localStorage if present
-      try {
-        const localUsers = JSON.parse(localStorage.getItem('users') || '[]');
-        const localUser = localUsers.find(u => u.email === localStorage.getItem('preo_user'));
-        if (localUser) {
-          await storage.setUser(localUser); // migrate to Supabase
-          appUser = await storage.getUser(localUser.email);
-        }
-      } catch (e) {}
-    }
-    if (!appUser) {
-      console.log('No user found, redirecting...');
-      window.location.href = 'index.html';
-      return;
-    }
-    globalState.user = appUser;
-    globalState.currentTimeframe = 300;
-    document.getElementById('username').textContent = appUser.username || appUser.email;
+  let appUser = storage.getUser();
+  if (!appUser) {
+    console.log('No user found, redirecting...');
+    window.location.href = 'index.html';
+    return;
+  }
+
+  console.log('User found:', appUser.username);
+  globalState.user = appUser;
+  globalState.currentTimeframe = 300;
+  
+  document.getElementById('username').textContent = appUser.username;
+  
+  // IMMEDIATELY render market data
+  console.log('==========================================');
+  console.log('RENDERING MARKET DATA IMMEDIATELY...');
+  console.log('==========================================');
+  renderMarketData();
+  
+  // Load balance
+  setTimeout(() => {
+    console.log('Loading balance...');
+    loadBalanceData();
+    console.log('Re-rendering market data...');
     renderMarketData();
-    setTimeout(() => {
-      loadBalanceData();
-      renderMarketData();
-    }, 100);
-    setTimeout(() => {
-      try {
-        initChart();
-        setupChartControls();
-      } catch(e) {}
-      setupEventListeners();
-      updateRecentWinsDisplay();
-    }, 500);
-    // Set account open label if available
-    if (appUser.created_at) {
-      const label = document.getElementById('accountOpenLabel');
-      if (label) label.textContent = `Account opened: ${new Date(appUser.created_at).toLocaleString()}`;
+  }, 100);
+  
+  // Initialize chart after short delay
+  setTimeout(() => {
+    console.log('==========================================');
+    console.log('INITIALIZING CHART...');
+    console.log('==========================================');
+    try {
+      initChart();
+      setupChartControls();
+      console.log('✓ Chart initialized successfully');
+    } catch(e) {
+      console.error('❌ Chart error:', e);
     }
-    setInterval(updatePrices, 2000);
-  })();
+    setupEventListeners();
+    updateRecentWinsDisplay();
+    console.log('✓ Dashboard initialization complete');
+  }, 500);
+
+  // Fallback
+  if (!globalState.accountCreatedAt) {
+    try {
+      const users = JSON.parse(localStorage.getItem('users') || '[]');
+      const found = users.find(u => (u.email && globalState.user && u.email === globalState.user.email) || (u.id && globalState.user && u.id === globalState.user.id));
+      if (found && found.createdAt) {
+        globalState.accountCreatedAt = found.createdAt;
+        const label = document.getElementById('accountOpenLabel');
+        if (label) label.textContent = `Account opened: ${new Date(found.createdAt).toLocaleString()}`;
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
   
   // Update prices periodically
   setInterval(updatePrices, 2000);
@@ -256,16 +272,42 @@ async function loadUserProfileCreatedAt() {
 // ============================================================================
 
 function loadBalanceData() {
-  // Load balances from Supabase for the logged-in user
+  // Check if current user is a marketer
   let currentUser = globalState.user;
-  if (!currentUser || !currentUser.username) return;
-  (async () => {
-    const demoBalance = await storage.getBalance(currentUser.username, 'demo');
-    const realBalance = await storage.getBalance(currentUser.username, 'real');
-    globalState.accountBalances.demo = { balance: demoBalance, equity: demoBalance, pnl: 0, positions: 0 };
-    globalState.accountBalances.real = { balance: realBalance, equity: realBalance, pnl: 0, positions: 0 };
-    updateAccountDisplay();
-  })();
+  const marketers = JSON.parse(localStorage.getItem('marketers') || '[]');
+  const marketer = marketers.find(m => m.email === currentUser.email);
+  
+  let demoData, realData;
+  
+  if (marketer && marketer.isMarketer) {
+    // Marketer: Load balance from marketer account (live trading only)
+    realData = {
+      balance: marketer.balance,
+      equity: marketer.balance,
+      pnl: 0,
+      positions: 0
+    };
+    demoData = { balance: 10000, equity: 10000, pnl: 0, positions: 0 };
+    
+    // Store marketer data
+    localStorage.setItem('accountData_real', JSON.stringify(realData));
+    localStorage.setItem('accountData_demo', JSON.stringify(demoData));
+  } else {
+    // Regular user: Load from localStorage
+    demoData = JSON.parse(localStorage.getItem('accountData_demo') || '{"balance":10000,"equity":10000,"pnl":0,"positions":0}');
+    realData = JSON.parse(localStorage.getItem('accountData_real') || '{"balance":0,"equity":0,"pnl":0,"positions":0}');
+    
+    // Ensure real account always starts at 0 if not explicitly set by deposits/trades
+    if (!localStorage.getItem('accountData_real')) {
+      localStorage.setItem('balance_real', '0');
+    }
+  }
+  
+  globalState.accountBalances.demo = demoData;
+  globalState.accountBalances.real = realData;
+  
+  // Display current account data
+  updateAccountDisplay();
 }
 // ============================================================================
 // CHART INITIALIZATION & REALTIME FEED
@@ -494,8 +536,8 @@ function createChartSeries(chart, chartType) {
 function startChartUpdates() {
   if (chartUpdateInterval) clearInterval(chartUpdateInterval);
   
-  const updateFrequency = 500; // Update every 500ms for smooth animations
-  const timeframeSeconds = Math.max(1, globalState.currentTimeframe || 5);
+  const updateFrequency = 1000;
+  const timeframeSeconds = globalState.currentTimeframe;
   
   let currentPrice = window.lastChartPrice || 1.0950;
   let candleOpen = currentPrice;
@@ -507,27 +549,21 @@ function startChartUpdates() {
   const alignedNow = nowTs - (nowTs % timeframeSeconds);
   let candleStartTime = Math.max(alignedNow, (window.lastHistoricalTime || 0) + timeframeSeconds);
   
-  console.log(`🔴 LIVE UPDATES starting | Starting at time: ${candleStartTime} | Price: ${currentPrice.toFixed(4)} | Timeframe: ${timeframeSeconds}s`);
+  console.log(`🔴 LIVE UPDATES starting | Starting at time: ${candleStartTime} | Price: ${currentPrice.toFixed(4)}`);
   
   const updateFunction = () => {
     try {
-      if (!globalState.chart || !activeSeries.length) {
-        console.warn('Chart or series not available, keeping interval alive');
-        return; // Keep the interval alive even if chart is momentarily unavailable
-      }
+      if (!globalState.chart || !activeSeries.length) return;
       
       const series = activeSeries[0];
       const nowTs = Math.floor(Date.now() / 1000);
       const alignedTime = nowTs - (nowTs % timeframeSeconds);
       
-      // Adaptive volatility based on timeframe
-      // Longer timeframes should have more volatile moves
-      const tfVolatilityFactor = Math.sqrt(timeframeSeconds / 5); // sqrt for smoother scaling
-      const microVolatility = (0.0020 + Math.random() * 0.0050) * tfVolatilityFactor;
+      // EXTREME volatility
+      const microVolatility = 0.0050 + Math.random() * 0.0070;
       const direction = Math.random() > 0.5 ? 1 : -1;
       currentPrice += direction * microVolatility;
       
-      // Keep price in reasonable range
       if (currentPrice < 1.0800) currentPrice = 1.0800 + Math.random() * 0.005;
       if (currentPrice > 1.1200) currentPrice = 1.1200 - Math.random() * 0.005;
       
@@ -566,16 +602,14 @@ function startChartUpdates() {
       
     } catch(e) {
       console.error('Update error (continuing):', e.message);
-      // Continue running even on error
     }
   };
   
-  // Start the interval - this will run INDEFINITELY until explicitly cleared
   chartUpdateInterval = setInterval(updateFunction, updateFrequency);
   updateFunction(); // Run immediately
   
-  console.log(`✓ CONTINUOUS updates STARTED | Updates every ${updateFrequency}ms | Timeframe: ${timeframeSeconds}s`);
-  console.log(`✓ Chart will run FOREVER regardless of timeframe changes 🚀`);
+  console.log(`✓ CONTINUOUS updates running | Extreme volatility | Updates every ${updateFrequency}ms`);
+  console.log(`⚡ Chart will run FOREVER - go to sleep! 💤`);
 }
 
 // Simple per-symbol simulation state to create trending moves
@@ -1704,58 +1738,6 @@ function setupEventListeners() {
   // Restore theme preference
   if (localStorage.getItem('theme') === 'light') {
     document.body.classList.add('light-mode');
-  }
-
-  // Account switching (Demo/Real)
-  let currentAccount = localStorage.getItem('tradingAccount') || 'demo';
-  window.currentTradingAccount = currentAccount;
-  
-  function switchDashboardAccount(account) {
-    currentAccount = account;
-    window.currentTradingAccount = account;
-    localStorage.setItem('tradingAccount', account);
-    
-    const demoBtn = document.getElementById('demoBtnDash');
-    const realBtn = document.getElementById('realBtnDash');
-    
-    if (demoBtn && realBtn) {
-      if (account === 'demo') {
-        demoBtn.style.borderColor = 'var(--secondary)';
-        demoBtn.style.color = 'var(--secondary)';
-        demoBtn.style.background = 'transparent';
-        
-        realBtn.style.borderColor = 'transparent';
-        realBtn.style.color = 'var(--text-secondary)';
-        realBtn.style.background = 'transparent';
-      } else {
-        realBtn.style.borderColor = 'var(--warning)';
-        realBtn.style.color = 'var(--warning)';
-        realBtn.style.background = 'rgba(255, 215, 0, 0.1)';
-        
-        demoBtn.style.borderColor = 'transparent';
-        demoBtn.style.color = 'var(--text-secondary)';
-        demoBtn.style.background = 'transparent';
-      }
-    }
-    
-    location.reload(); // Reload to update balances
-  }
-  
-  // Setup account switcher buttons
-  document.getElementById('demoBtnDash')?.addEventListener('click', () => switchDashboardAccount('demo'));
-  document.getElementById('realBtnDash')?.addEventListener('click', () => switchDashboardAccount('real'));
-  
-  // Initialize account display
-  const demoBtnInit = document.getElementById('demoBtnDash');
-  const realBtnInit = document.getElementById('realBtnDash');
-  if (currentAccount === 'demo' && demoBtnInit && realBtnInit) {
-    demoBtnInit.style.borderColor = 'var(--secondary)';
-    demoBtnInit.style.color = 'var(--secondary)';
-  } else if (currentAccount === 'real' && realBtnInit && demoBtnInit) {
-    realBtnInit.style.borderColor = 'var(--warning)';
-    realBtnInit.style.color = 'var(--warning)';
-    realBtnInit.style.background = 'rgba(255, 215, 0, 0.1)';
-    demoBtnInit.style.color = 'var(--text-secondary)';
   }
   
   // Indicator checkboxes
