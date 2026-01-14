@@ -230,47 +230,29 @@
           <div id="sellPrice" style="font-size: 9px; opacity: 0.9; font-family: monospace;">--</div>
         </button>
         <!-- Chart Container -->
-        <div id="mainChart" style="width: 100%; height: 100%;"></div>
         <div id="mainChart" style="width: 100%; height: 600px; min-height: 300px; display: block;"></div>
       </div>
     </section>
 
     <!-- Two Column Grid for Pairs and Market Heat -->
     <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: var(--spacing-lg); grid-column: 1 / -1;">
-      <!-- Forex Pairs -->
-      <section class="trading-section">
-        <div class="section-header">
-          <h2>Forex Pairs</h2>
-          <input type="text" id="searchPairs" class="search-box" placeholder="Search..." style="max-width: 200px;">
-        </div>
-        <div class="pairs-table">
-          <div class="table-header">
-            <div class="col-pair">Pair</div>
-            <div class="col-price">Price</div>
-            <div class="col-change">Change</div>
-            <div class="col-bid-ask">Bid/Ask</div>
-            <div class="col-action">Action</div>
+      <!-- Top Navigation -->
+      <header class="top-nav">
+        <div class="nav-left">
+          <button id="menuToggle" class="menu-toggle">☰</button>
+          <div class="logo">
+            <!-- ...existing SVG code... -->
           </div>
-          <div id="forexList"></div>
+          <h1 style="font-size: 20px; font-weight: 700; color: var(--primary); margin-left: 12px;">PreoCrypto</h1>
         </div>
-      </section>
-
-      <!-- Cryptocurrencies -->
-      <section class="trading-section">
-        <div class="section-header">
-          <h2>Cryptos</h2>
+        <div class="nav-right" style="display: flex; gap: 16px; align-items: center;">
+          <span id="username" style="font-weight: 600; color: var(--secondary);">User</span>
+          <button id="toggleMode" class="btn btn-outline btn-small" title="Toggle Light/Dark Mode">🌗</button>
+          <button class="btn btn-outline btn-small logout" id="logoutBtn" title="Logout">Logout</button>
+          <button id="demoAccountBtn" class="btn btn-outline btn-small" style="margin-left:8px;">Demo</button>
+          <button id="realAccountBtn" class="btn btn-outline btn-small">Real</button>
         </div>
-        <div class="pairs-table">
-          <div class="table-header">
-            <div class="col-pair">Asset</div>
-            <div class="col-price">Price</div>
-            <div class="col-change">24h</div>
-            <div class="col-bid-ask">Market Cap</div>
-            <div class="col-action">Trade</div>
-          </div>
-          <div id="cryptoList"></div>
-        </div>
-      </section>
+      </header>
     </div>
 
     <!-- Indices Section -->
@@ -288,42 +270,11 @@
           </div>
           <div id="indicesList"></div>
         </div>
-      </section>
-    </div>
-
-    <!-- Open Positions & Recent Trades -->
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-lg); grid-column: 1 / -1;">
-      <section class="content-card">
-        <h3>📍 Open Positions</h3>
-        <div id="openPositionsList" class="empty-state">No open positions</div>
-      </section>
-
-      <section class="content-card">
-        <h3>📝 Recent Trades</h3>
-        <div id="recentTradesList" class="empty-state">No trades yet</div>
-      </section>
-    </div>
-
-    <!-- Recent Wins -->
-    <section class="content-card" style="grid-column: 1 / -1;">
-      <h3>🏆 Recent Wins</h3>
-      <div id="recentWinsList" class="empty-state">No winning trades yet</div>
-    </section>
-  </main>
-
-  <!-- Trade Modal -->
-  <div id="tradeModal" class="modal">
-    <div class="modal-content" style="max-width: 500px; max-height: 90vh; overflow-y: auto;">
-      <div class="modal-header">
-        <h2>Trade <span id="modalPair" style="color: var(--secondary);">EUR/USD</span></h2>
-        <button class="modal-close" onclick="closeTradeModal()">✕</button>
-      </div>
-
-      <form id="tradeForm" style="padding: 0 var(--spacing-lg) var(--spacing-lg);">
-        <!-- Trade Type Selection -->
-        <div class="form-group">
-          <label>Trade Type</label>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-md);">
+      <!-- Scripts: Ensure dashboard-app.js is loaded last for event listeners -->
+      <script src="config.js"></script>
+      <script src="storage.js"></script>
+      <script src="sync-manager.js"></script>
+      <script src="dashboard-app.js?v=TIMESTAMP_FIX_FINAL"></script>
             <button type="button" id="modalBuyBtn" class="btn btn-success" style="background: var(--success);">📈 Buy</button>
             <button type="button" id="modalSellBtn" class="btn" style="background: var(--danger); color: var(--text-primary);">📉 Sell</button>
           </div>
