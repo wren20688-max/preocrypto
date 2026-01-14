@@ -1,272 +1,426 @@
-# 💳 PayHero Integration Guide
+## PayHero Payment Integration - Implementation Guide
 
-## What's Configured ✅
-
-Your PreoCrypto platform has **complete PayHero integration** ready:
-
-### PayHero Netlify Functions
-- ✅ `payhero-create-intent.js` - Create payment intent
-- ✅ `payhero-create-payment.js` - Process payment
-- ✅ `stk-push.js` - M-Pesa STK push (via PayHero)
-- ✅ `webhook-payhero.js` - Handle PayHero webhooks
-- ✅ `test-config.js` - Test PayHero configuration
-
-### Payment Flow
-1. User enters amount on **Wallet & Funds** page
-2. Clicks "Deposit with M-Pesa"
-3. PayHero creates payment intent
-4. User completes payment on PayHero UI
-5. M-Pesa sends money to PayHero
-6. PayHero calls webhook → Balance updated in Supabase
+### Overview
+Complete payment integration system for PreoCrypto platform connecting 4 payment methods (Bank Transfer, Credit Card, Crypto, PayPal) with PayHero gateway.
 
 ---
 
-## 🔧 Setup PayHero (3 Steps)
+## File Structure
 
-### Step 1: Get PayHero Credentials
+### 1. **payhero-integration.js** (Core Integration)
+Main payment processing module with PayHero API communication.
 
-Go to **https://payhero.io** and:
-1. Create account or login
-2. Go to **Settings → API**
-3. Find and copy:
-   - **Basic Auth** (or Secret Key)
-   - **Account ID**
+#### Key Components:
 
-### Step 2: Get M-Pesa Credentials (from PayHero)
-
-In PayHero dashboard:
-1. Navigate to **M-Pesa Integration**
-2. Note the provided:
-   - **M-Pesa Shortcode**
-   - **Consumer Key**
-   - **Consumer Secret**
-   - **Account ID** (for routing)
-
-### Step 3: Add to Environment Variables
-
-**Local Development (.env file):**
-```env
-PAYHERO_BASIC_AUTH=your_basic_auth_token
-PAYHERO_SECRET_KEY=your_secret_key
-PAYHERO_ACCOUNT_ID=your_account_id
-PAYHERO_CALLBACK_URL=http://localhost:5000/webhook/payhero
-```
-
-**Netlify Deployment (Dashboard):**
-Go to **Site settings → Build & deploy → Environment**
-
-Add each variable:
-```
-Key: PAYHERO_BASIC_AUTH
-Value: your_basic_auth_token
-
-Key: PAYHERO_SECRET_KEY
-Value: your_secret_key
-
-Key: PAYHERO_ACCOUNT_ID
-Value: your_account_id
-
-Key: PAYHERO_CALLBACK_URL
-Value: https://your-site.netlify.app/webhook/payhero
-```
-
----
-
-## 🧪 Test PayHero Integration
-
-### Test Endpoint
-```bash
-curl https://your-site.netlify.app/.netlify/functions/test-config
-```
-
-Expected response:
-```json
+**PayHeroConfig** - Configuration object:
+```javascript
 {
-  "success": true,
-  "message": "✅ PayHero is configured",
-  "config": {
-    "hasBasicAuth": true,
-    "hasSecretKey": true,
-    "hasAccountId": true,
-    "hasCallbackUrl": true,
-    "allEnvVarsSet": true
+  PUBLIC_KEY: 'your_payhero_public_key',        // Replace with real key
+  SECRET_KEY: 'your_payhero_secret_key',        // Replace with real key
+  API_URL: 'https://api.payhero.io/v1',
+  WEBHOOK_URL: 'https://yourapp.com/webhook/payhero'
+}
+```
+
+**Payment Methods Mapping:**
+- `bank_transfer` - ACH processing (1-3 days, 0.5% fee)
+- `credit_card` - Card processing (Instant, 2.9% + $0.30)
+- `crypto` - Cryptocurrency (5-15 min, 1% fee)
+- `paypal` - PayPal (Instant, 2.2% + $0.30)
+
+#### Core Functions:
+
+**`createPaymentIntent(paymentData)`**
+- Creates payment intent with PayHero
+- Validates payment data
+- Calculates fees
+- Returns payment URL for redirect
+- **Returns:** `{success, paymentId, paymentUrl, amount, fee, totalAmount}`
+
+**`processPayment(paymentData)`**
+- Processes payment with method-specific configuration
+- Handles bank, card, crypto, and PayPal data
+- **Returns:** `{success, transactionId, status, timestamp}`
+
+**`verifyPaymentStatus(paymentId)`**
+- Checks payment status with PayHero
+- **Returns:** `{success, status, amount, method}`
+
+**`calculateFee(amount, methodConfig)`**
+- Calculates processing fee based on method
+- Formula: (amount × percentage) + fixed fee
+
+**`getMethodFeeInfo(method)`**
+- Returns fee information for method
+- Shows processing time and limits
+
+**`handleWebhook(webhookData)`**
+- Processes PayHero webhook events
+- Handles: payment.completed, payment.failed, payment.pending, payment.cancelled
+- Updates user balance on completion
+
+---
+
+### 2. **deposit-app.js** (UI Integration)
+Handles deposit form and PayHero integration.
+
+#### Updated Functions:
+
+**`handleDeposit(e)` - ASYNC**
+```javascript
+// Flow:
+1. Validate amount ($10-$100,000)
+2. Get selected payment method
+3. Call PayHeroIntegration.createPaymentIntent()
+4. On success: Redirect to payment URL or process demo
+5. On error: Show error notification and re-enable form
+```
+
+**`processDepositSuccess(amount, method, depositUser)`**
+```javascript
+// After payment:
+1. Record transaction in localStorage
+2. Update account balance
+3. Update marketer balance (if applicable)
+4. Show success notification
+5. Redirect to finances page
+```
+
+---
+
+### 3. **deposit.html** (UI)
+Payment method selector and deposit form.
+
+#### Elements:
+- 4 payment method buttons (Bank, Card, Crypto, PayPal)
+- Amount input ($10 min, $100,000 max)
+- Method-specific fields (dropdowns for each method)
+- Recent deposits list
+- Fee information display
+
+---
+
+## Implementation Steps
+
+### Step 1: Update PayHero Credentials
+
+Edit `payhero-integration.js` line 8-10:
+
+```javascript
+const PayHeroConfig = {
+  PUBLIC_KEY: 'pk_live_your_actual_public_key',
+  SECRET_KEY: 'sk_live_your_actual_secret_key',
+  API_URL: 'https://api.payhero.io/v1',
+  WEBHOOK_URL: 'https://your-domain.com/webhook/payhero'
+};
+```
+
+### Step 2: Configure API Endpoints
+
+Update `WEBHOOK_URL` to your server endpoint that receives PayHero webhooks:
+
+```javascript
+WEBHOOK_URL: 'https://preocrypto.yourdomain.com/webhook/payhero'
+```
+
+### Step 3: Deploy Webhook Handler
+
+Create a backend endpoint to receive PayHero webhooks:
+
+```javascript
+// Example: Node.js/Express
+app.post('/webhook/payhero', (req, res) => {
+  const webhookData = req.body;
+  const result = PayHeroIntegration.handleWebhook(webhookData);
+  res.json({ received: true });
+});
+```
+
+### Step 4: Test Payment Flow
+
+1. Navigate to deposit.html
+2. Select payment method
+3. Enter amount ($10 or more)
+4. Click submit
+5. Verify payment intent is created
+6. Test with PayHero sandbox mode
+
+---
+
+## Payment Flow Diagram
+
+```
+User Form (deposit.html)
+    ↓
+handleDeposit() [deposit-app.js]
+    ↓
+createPaymentIntent() [payhero-integration.js]
+    ↓
+PayHero API /payment/create
+    ↓
+Returns: paymentId + paymentUrl
+    ↓
+Redirect to Payment Processor
+    ↓
+User Completes Payment
+    ↓
+PayHero Webhook → Backend
+    ↓
+handleWebhook() [payhero-integration.js]
+    ↓
+Update Balance + Transaction Record
+```
+
+---
+
+## API Reference
+
+### PayHeroIntegration Methods
+
+#### `createPaymentIntent(paymentData)`
+**Input:**
+```javascript
+{
+  amount: 100,              // USD amount
+  method: 'credit_card',    // Payment method
+  currency: 'USD',
+  userId: 'user123',
+  userEmail: 'user@example.com',
+  userName: 'John Doe'
+}
+```
+
+**Output:**
+```javascript
+{
+  success: true,
+  paymentId: 'pay_1234567890',
+  paymentUrl: 'https://payment.payhero.io/...',
+  amount: 100,
+  fee: 3.20,
+  totalAmount: 103.20,
+  status: 'pending'
+}
+```
+
+#### `processPayment(paymentData)`
+**Input:**
+```javascript
+{
+  amount: 100,
+  method: 'bank_transfer',
+  userId: 'user123',
+  userEmail: 'user@example.com',
+  bankData: {
+    accountType: 'checking',
+    routingNumber: '121000248',
+    accountNumber: '123456789',
+    accountHolder: 'John Doe'
   }
 }
 ```
 
-### Manual Payment Test
-
-**Create Intent:**
-```bash
-curl -X POST https://your-site.netlify.app/.netlify/functions/payhero-create-intent \
-  -H "Content-Type: application/json" \
-  -d '{
-    "amount": 100,
-    "phone": "+254712345678",
-    "account_reference": "test-user"
-  }'
+**Output:**
+```javascript
+{
+  success: true,
+  transactionId: 'txn_1234567890',
+  status: 'completed',
+  timestamp: '2024-01-15T10:30:00Z'
+}
 ```
 
-Expected response:
-```json
+#### `verifyPaymentStatus(paymentId)`
+**Input:** `'pay_1234567890'`
+
+**Output:**
+```javascript
 {
-  "success": true,
-  "data": {
-    "intent_id": "pi_123456",
-    "payment_url": "https://payhero.io/pay/pi_123456",
-    "amount": 100
-  }
+  success: true,
+  status: 'completed',
+  amount: 103.20,
+  method: 'credit_card'
+}
+```
+
+#### `getMethodFeeInfo(method)`
+**Input:** `'credit_card'`
+
+**Output:**
+```javascript
+{
+  method: 'credit_card',
+  feePercentage: 2.9,
+  feeFixed: 0.30,
+  processingTime: 'Instant',
+  minAmount: 10,
+  maxAmount: 50000
 }
 ```
 
 ---
 
-## 🌐 Webhook Configuration
+## Error Handling
 
-### What Happens on Payment Success
+### Common Errors & Solutions
 
-1. PayHero POSTs to: `https://your-site.netlify.app/webhook/payhero`
-2. Payload includes:
-   ```json
-   {
-     "status": "completed",
-     "amount": 100,
-     "currency": "KES",
-     "email": "user@example.com",
-     "reference": "user-transaction-id"
-   }
-   ```
-3. `webhook-payhero.js` processes webhook
-4. Updates user balance in Supabase:
-   - Converts KES to USD (KES / 145 = USD)
-   - Adds to `real_balance`
-   - Creates transaction record
-5. Logs success
+| Error | Cause | Solution |
+|-------|-------|----------|
+| "Invalid API credentials" | Wrong PUBLIC_KEY/SECRET_KEY | Update PayHeroConfig |
+| "Payment intent creation failed" | Invalid payment data | Validate amount/method |
+| "Unsupported payment method" | Method not in config | Check method name spelling |
+| "Amount exceeds maximum" | Amount > method limit | Check method max limits |
+| "Network error" | API unreachable | Check internet connection |
 
-### Setup Webhook in PayHero
-
-1. Go to **PayHero Dashboard → Settings → Webhooks**
-2. Click **Add Webhook**
-3. URL: `https://your-site.netlify.app/webhook/payhero`
-4. Events: Select **payment.completed**
-5. Save
+### Error Response Format
+```javascript
+{
+  success: false,
+  error: 'Payment processing failed',
+  transactionId: 'txn_optional_id'
+}
+```
 
 ---
 
-## 💰 Payment Flow Example
+## Fee Calculation Examples
 
-### User Deposits KES 1,000 with M-Pesa
+### Bank Transfer - $100
+```
+Base: $100
+Fee: $100 × 0.5% = $0.50
+Total: $100.50
+```
 
-1. **User**: Opens Wallet page → Clicks "Deposit with M-Pesa"
-2. **Frontend**: Sends request to `/api/payhero/create-intent`
-3. **Backend**: Creates intent with PayHero
-4. **PayHero**: Returns payment URL
-5. **User**: Opens payment URL, enters M-Pesa PIN
-6. **M-Pesa**: Processes payment
-7. **PayHero**: Receives payment, calls webhook
-8. **Backend**: Webhook handler:
-   - Gets email from webhook
-   - Finds user in Supabase
-   - Converts: 1000 KES ÷ 145 = ~6.90 USD
-   - Updates: `users.real_balance += 6.90`
-   - Creates transaction record
-9. **Frontend**: Balance updates, shows success message
+### Credit Card - $500
+```
+Base: $500
+Fee: ($500 × 2.9%) + $0.30 = $14.80
+Total: $514.80
+```
 
----
+### Crypto - $250
+```
+Base: $250
+Fee: $250 × 1% = $2.50
+Total: $252.50
+```
 
-## 📊 Supported Payment Methods
-
-PayHero supports:
-
-| Method | Status | Notes |
-|--------|--------|-------|
-| M-Pesa | ✅ Active | Integrated via STK push |
-| Airtel Money | ✅ Available | Configure in PayHero |
-| Bank Transfer | ✅ Available | Configure in PayHero |
-| Card | ✅ Available | Configure in PayHero |
+### PayPal - $1000
+```
+Base: $1000
+Fee: ($1000 × 2.2%) + $0.30 = $22.30
+Total: $1022.30
+```
 
 ---
 
-## 🔐 Security Best Practices
+## Security Features
 
-1. **Never commit credentials** - Use environment variables only
-2. **Use Service Role Key** - For backend operations (Netlify Functions)
-3. **Validate Webhooks** - Check webhook signature in production
-4. **HTTPS Only** - Callback URL must use HTTPS
-5. **Rate Limiting** - PayHero has built-in rate limits
+### 1. **Webhook Signature Verification**
+```javascript
+// In payhero-integration.js
+verifyWebhookSignature(webhookData) {
+  // HMAC SHA256 verification with PayHero secret
+  // Prevents unauthorized webhook calls
+}
+```
 
----
+### 2. **Request ID Generation**
+```javascript
+generateRequestId() {
+  return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
+```
 
-## 📞 PayHero API Endpoints
+### 3. **Authorization Headers**
+All API calls include:
+- `Authorization: Bearer {PUBLIC_KEY}`
+- `X-API-Key: {SECRET_KEY}`
+- `X-Request-ID: {unique_id}`
+- `X-Timestamp: {ISO_timestamp}`
 
-Your functions call these PayHero endpoints:
-
-| Endpoint | Purpose | Function |
-|----------|---------|----------|
-| `/api/stk-push` | M-Pesa prompt | `stk-push.js` |
-| `/api/query` | Check payment status | `payhero-create-intent.js` |
-| `/webhook` | Receive webhooks | `webhook-payhero.js` |
-
----
-
-## ❌ Troubleshooting
-
-### "PayHero is NOT configured"
-- Missing environment variables
-- Check **test-config** endpoint
-- Verify all 4 variables set in Netlify
-
-### Webhook not being called
-- Check PayHero webhook configuration
-- Verify callback URL is correct
-- Check Netlify function logs for errors
-- Ensure callback URL uses HTTPS
-
-### Payment shows as pending
-- Check PayHero dashboard for payment status
-- User may not have completed M-Pesa PIN
-- Check Supabase transaction records
-
-### Balance not updating
-- Check `webhook-payhero.js` logs
-- Verify user email in webhook matches Supabase
-- Check Supabase for transaction record
+### 4. **HTTPS Only**
+- All API endpoints use HTTPS
+- Webhook receiver must use HTTPS
 
 ---
 
-## 🚀 Next Steps
+## Testing Checklist
 
-1. **Get PayHero Account** - https://payhero.io
-2. **Get Credentials** - From PayHero Settings
-3. **Add to .env** - For local testing
-4. **Add to Netlify** - For production
-5. **Set Webhook** - In PayHero dashboard
-6. **Test with test-config** - Verify setup
-7. **Test with manual deposit** - Create test transaction
-
----
-
-## ✨ Features Enabled
-
-With PayHero integration:
-- ✅ Users can deposit via M-Pesa
-- ✅ Real-time balance updates
-- ✅ Automatic KES to USD conversion
-- ✅ Transaction history tracking
-- ✅ Webhook-based confirmation
-- ✅ Admin deposit monitoring
+- [ ] PayHero credentials configured
+- [ ] Webhook URL accessible
+- [ ] Bank Transfer payment method works
+- [ ] Credit Card payment method works
+- [ ] Crypto payment method works
+- [ ] PayPal payment method works
+- [ ] Fee calculations accurate
+- [ ] Balance updates on success
+- [ ] Transaction records created
+- [ ] Marketer balances update
+- [ ] Error handling works
+- [ ] Form validation works
 
 ---
 
-## 📝 Admin Monitoring
+## Production Deployment
 
-Admin can:
-1. View all deposits in **Deposits** section
-2. See payment status (pending/completed/failed)
-3. Monitor total revenue
-4. View transaction history
-5. Check M-Pesa STK push logs
+### Pre-Deployment Checklist
+
+1. **Update Credentials**
+   - Replace all sandbox keys with live keys
+   - Update WEBHOOK_URL to production domain
+
+2. **Enable HTTPS**
+   - All endpoints must use HTTPS
+   - Valid SSL certificate required
+
+3. **Set Webhook Secret**
+   - Configure webhook signature verification
+   - Store secret securely
+
+4. **Test Transactions**
+   - Execute test deposits on all payment methods
+   - Verify balance updates
+   - Check transaction records
+
+5. **Monitor Integration**
+   - Log all API calls
+   - Monitor webhook delivery
+   - Track failed payments
+
+6. **Customer Support**
+   - Document payment methods
+   - Provide troubleshooting guide
+   - Support contact info
 
 ---
 
-**Your payment system is production-ready!** 🎉
+## Support & Resources
+
+- **PayHero Documentation:** https://docs.payhero.io
+- **API Reference:** https://api.payhero.io/docs
+- **Webhook Events:** https://docs.payhero.io/webhooks
+- **Test Cards:** https://docs.payhero.io/testing
+
+---
+
+## Maintenance Notes
+
+### Regular Tasks
+- Monitor webhook delivery rates
+- Review failed payment logs
+- Update fee schedules if changed
+- Test payment methods monthly
+
+### Performance Optimization
+- Cache method fee info (15 min TTL)
+- Batch webhook processing
+- Implement transaction retry logic
+- Rate limit API calls (100 req/min)
+
+---
+
+**Version:** 1.0  
+**Last Updated:** December 2024  
+**Maintained By:** PreoCrypto Dev Team

@@ -335,11 +335,9 @@
 
   <script src="config.js"></script>
   <!-- config.js already loaded above to provide API_BASE; footer intentionally omitted on login -->
+  
+  
   <script>
-    // Migrate all localStorage users to Supabase before login
-    if (window.storage && typeof storage.migrateLocalUsersToSupabase === 'function') {
-      storage.migrateLocalUsersToSupabase();
-    }
     // Load saved credentials on page load
     window.addEventListener('DOMContentLoaded', function() {
       const savedEmail = localStorage.getItem('preo_saved_user');

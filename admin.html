@@ -117,9 +117,12 @@
   </div>
 
   <script>
-    // Admin login using Supabase-backed endpoint
+    // Simple admin gate using fixed credentials and sessionStorage
     (function adminGate(){
-      async function showLogin(){
+      const ADMIN_EMAIL = 'wren20688@gmail.com';
+      const ADMIN_PASSWORD = 'Jos134ka2';
+      const key = 'adminAuth';
+      function showLogin(){
         const overlay = document.createElement('div');
         overlay.id = 'adminLoginOverlay';
         overlay.style.cssText = 'position:fixed;inset:0;background:rgba(10,14,39,0.92);display:flex;align-items:center;justify-content:center;z-index:9999;';
@@ -134,54 +137,35 @@
             </div>
           </div>`;
         document.body.appendChild(overlay);
-        document.getElementById('adminLoginBtn').addEventListener('click', async () => {
+        document.getElementById('adminLoginBtn').addEventListener('click', () => {
           const email = (document.getElementById('adminEmail').value||'').trim();
           const pass = (document.getElementById('adminPassword').value||'').trim();
-          // Use Supabase-backed login endpoint
-          try {
-            const res = await fetch('/.netlify/functions/auth-login', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ username: email, password: pass })
-            });
-            const data = await res.json();
-            if (res.ok && data.user && (data.user.role === 'admin' || data.user.isAdmin)) {
-              localStorage.setItem('preo_user', email);
-              localStorage.setItem('preo_token', data.token);
-              document.getElementById('adminLoginOverlay')?.remove();
-              refresh();
-            } else {
-              const msg = document.getElementById('adminLoginMsg');
-              msg.textContent = 'Invalid admin credentials';
-              msg.style.display = 'block';
-            }
-          } catch (e) {
+          if (email === ADMIN_EMAIL && pass === ADMIN_PASSWORD) {
+            sessionStorage.setItem(key, 'authenticated');
+            document.getElementById('adminLoginOverlay')?.remove();
+            refresh();
+          } else {
             const msg = document.getElementById('adminLoginMsg');
-            msg.textContent = 'Login failed. Please try again.';
             msg.style.display = 'block';
           }
         });
       }
-      // If the user is already logged in and marked as admin in Supabase, auto-authenticate
-      (async () => {
-        try {
-          const email = localStorage.getItem('preo_user');
-          const token = localStorage.getItem('preo_token');
-          if (email && token) {
-            // Validate admin role from Supabase
-            const res = await fetch('/.netlify/functions/user-data', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ action: 'getUser', payload: { username: email } })
-            });
-            const data = await res.json();
-            if (data.result && (data.result.role === 'admin' || data.result.isAdmin)) {
-              return refresh();
-            }
-          }
-        } catch(e){}
-        showLogin();
-      })();
+      // If the user is already logged in and marked as admin, auto-authenticate
+      try {
+        const preo = JSON.parse(localStorage.getItem('preo_user')||'null');
+        if (preo && (preo.role === 'admin' || preo.isAdmin)) {
+          sessionStorage.setItem(key, 'authenticated');
+        }
+      } catch(e){}
+      if (sessionStorage.getItem(key) !== 'authenticated') {
+          // Prevent initial API calls until login
+          const origFetch = window.fetch;
+          window.fetch = async (...args) => {
+            if (sessionStorage.getItem(key) === 'authenticated') return origFetch(...args);
+            return new Response(JSON.stringify({ error:'Not authenticated' }), { status:401 });
+          };
+          showLogin();
+        }
     })();
     const API = '/api';
     // Global helpers moved out for proper scope
@@ -330,32 +314,25 @@
     // --- Balance Editor ---
     let cachedUsers = [];
     function renderBalanceEditor(users){
-      // Only marketers can be edited
-      const marketers = (users || cachedUsers || []).filter(u => u.role === 'marketer');
-      cachedUsers = marketers;
+      cachedUsers = users || cachedUsers || [];
       const select = document.getElementById('balanceUserSelect');
       if (!select) return;
-      // Add search by email
-      const searchInput = document.getElementById('search');
-      let filtered = marketers;
-      if (searchInput && searchInput.value) {
-        const q = searchInput.value.toLowerCase();
-        filtered = marketers.filter(u => u.email && u.email.toLowerCase().includes(q));
-      }
-      select.innerHTML = filtered.map(u => {
+      select.innerHTML = cachedUsers.map(u => {
         const label = `${u.email || ''} ${u.username ? '('+u.username+')' : ''}`.trim();
         return `<option value="${u.id}">${label}</option>`;
       }).join('');
-      // Pre-fill balances for first marketer
-      const first = filtered[0];
+      // Pre-fill balances for first user
+      const first = cachedUsers[0];
       if (first) {
         document.getElementById('demoBalanceInput').value = (first.balances?.demo ?? 0).toFixed(2);
         document.getElementById('realBalanceInput').value = (first.balances?.real ?? 0).toFixed(2);
+        // Default focus to real account editing
         document.getElementById('realBalanceInput').focus();
       }
+      // Update inputs when selection changes
       select.addEventListener('change', () => {
         const id = select.value;
-        const u = filtered.find(x => x.id === id);
+        const u = cachedUsers.find(x => x.id === id);
         if (!u) return;
         document.getElementById('demoBalanceInput').value = (u.balances?.demo ?? 0).toFixed(2);
         document.getElementById('realBalanceInput').value = (u.balances?.real ?? 0).toFixed(2);

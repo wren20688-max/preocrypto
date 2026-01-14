@@ -17,41 +17,64 @@
 </head>
 <body>
   <!-- Top Navigation -->
-  <!-- Scripts: Ensure correct order and placement -->
-  <script src="config.js"></script>
-  <script src="storage.js"></script>
-  <script src="sync-manager.js"></script>
-  <script src="dashboard-app.js?v=TIMESTAMP_FIX_FINAL"></script>
-  <script>
-    // EMERGENCY FORCE RENDER
-    console.log('EMERGENCY SCRIPT RUNNING...');
-    window.addEventListener('load', function() {
-      console.log('Page fully loaded');
-      setTimeout(function() {
-        if (typeof renderForexPairs !== 'undefined') {
-          try { renderForexPairs(); } catch(e) { console.error('Forex render error:', e); }
-        }
-        if (typeof renderCryptoPairs !== 'undefined') {
-          try { renderCryptoPairs(); } catch(e) { console.error('Crypto render error:', e); }
-        }
-        if (typeof renderIndicesPairs !== 'undefined') {
-          try { renderIndicesPairs(); } catch(e) { console.error('Indices render error:', e); }
-        }
-      }, 500);
-    });
-    // Inject footer with placeholders from appConfig
-    (function(){
-      const y = new Date().getFullYear();
-      const c = (window.appConfig && window.appConfig.companyName) || 'PreoCrypto';
-      const em = (window.appConfig && window.appConfig.supportEmail) || 'support@example.com';
-      const ph = (window.appConfig && window.appConfig.supportPhone) || '+000 000 0000';
-      const f = document.createElement('footer');
-      f.className = 'site-footer';
-      f.style.cssText = 'margin-top:24px;padding:14px;text-align:center;color:var(--text-tertiary);border-top:1px solid var(--border-color);';
-      f.innerHTML = `© ${y} ${c} • Customer Care: <a href="tel:${ph}" style="color:var(--text-tertiary);">${ph}</a> • <a href="mailto:${em}" style="color:var(--text-tertiary);">${em}</a>`;
-      document.body.appendChild(f);
-    })();
-  </script>
+  <header class="top-nav">
+    <div class="nav-left">
+      <button id="menuToggle" class="menu-toggle">☰</button>
+      <div class="logo">
+        <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#0055ff;stop-opacity:1" />
+              <stop offset="100%" style="stop-color:#00d4ff;stop-opacity:1" />
+            </linearGradient>
+          </defs>
+          <circle cx="100" cy="100" r="95" fill="none" stroke="url(#logoGradient)" stroke-width="2" opacity="0.3"/>
+          <path d="M 100 30 L 150 60 L 150 130 L 100 160 L 50 130 L 50 60 Z" fill="url(#logoGradient)" opacity="0.1" stroke="url(#logoGradient)" stroke-width="1.5"/>
+          <g>
+            <rect x="70" y="95" width="8" height="35" fill="#00d084" opacity="0.9"/>
+            <line x1="74" y1="85" x2="74" y2="135" stroke="#00d084" stroke-width="2"/>
+            <rect x="85" y="75" width="8" height="55" fill="#00d084" opacity="0.95"/>
+            <line x1="89" y1="65" x2="89" y2="135" stroke="#00d084" stroke-width="2"/>
+            <rect x="100" y="55" width="8" height="75" fill="#0055ff" opacity="1"/>
+            <line x1="104" y1="45" x2="104" y2="135" stroke="#0055ff" stroke-width="2"/>
+            <rect x="115" y="80" width="8" height="50" fill="#00d4ff" opacity="0.9"/>
+            <line x1="119" y1="70" x2="119" y2="135" stroke="#00d4ff" stroke-width="2"/>
+          </g>
+          <circle cx="160" cy="55" r="8" fill="none" stroke="#00d084" stroke-width="1.5" opacity="0.8"/>
+          <circle cx="160" cy="55" r="5" fill="none" stroke="#00d084" stroke-width="1" opacity="0.6"/>
+          <circle cx="160" cy="55" r="2" fill="#00d084" opacity="0.9"/>
+        </svg>
+      </div>
+      <h1>PreoCrypto</h1>
+    </div>
+    <div class="nav-center">
+      <div class="market-ticker">
+        <div class="ticker-item">
+          <span class="ticker-pair">EUR/USD</span>
+          <span class="ticker-price">1.0945</span>
+          <span class="ticker-change green">+0.12%</span>
+        </div>
+        <div class="ticker-item">
+          <span class="ticker-pair">GBP/USD</span>
+          <span class="ticker-price">1.2638</span>
+          <span class="ticker-change red">-0.15%</span>
+        </div>
+        <div class="ticker-item">
+          <span class="ticker-pair">BTC/USD</span>
+          <span class="ticker-price">45,230</span>
+          <span class="ticker-change green">+2.34%</span>
+        </div>
+        <div class="ticker-item">
+          <span class="ticker-pair">GOLD</span>
+          <span class="ticker-price">2,052</span>
+          <span class="ticker-change green">+1.15%</span>
+        </div>
+      </div>
+    </div>
+    <div class="nav-right">
+      <div class="user-info">
+        <span id="username" style="font-size: 13px;">User</span>
+        <img src="https://ui-avatars.com/api/?name=Trader&background=0055ff&color=fff" alt="User Avatar" class="user-avatar">
       </div>
       <button id="toggleMode" class="nav-btn" title="Dark Mode">🌙</button>
       <button id="logoutBtn" class="nav-btn logout" title="Logout">Logout</button>

@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: preotraderfx-api
+    env: node
+    rootDir: .
+    buildCommand: npm ci
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 18
+      - key: PORT
+        value: 3000
+    healthCheckPath: /api/health

@@ -1,7 +1,106 @@
 [build]
+  publish = "."
   functions = "netlify/functions"
 
 [[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/:splat"
+  from = "/api/auth/register"
+  to = "/.netlify/functions/auth-register"
   status = 200
+
+[[redirects]]
+  from = "/api/auth/login"
+  to = "/.netlify/functions/auth-login"
+  status = 200
+
+[[redirects]]
+  from = "/api/auth/identify"
+  to = "/.netlify/functions/auth-identify"
+  status = 200
+
+[[redirects]]
+  from = "/api/user/profile"
+  to = "/.netlify/functions/user-profile"
+  status = 200
+
+[[redirects]]
+  from = "/api/transactions"
+  to = "/.netlify/functions/transactions"
+  status = 200
+
+[[redirects]]
+  from = "/api/payment/deposit"
+  to = "/.netlify/functions/payment-deposit"
+  status = 200
+
+[[redirects]]
+  from = "/api/payment/withdrawal"
+  to = "/.netlify/functions/payment-withdrawal"
+  status = 200
+
+[[redirects]]
+  from = "/webhook/payhero"
+  to = "/.netlify/functions/webhook-payhero"
+  status = 200
+
+[[redirects]]
+  from = "/webhook/mpesa-callback"
+  to = "/.netlify/functions/mpesa-callback"
+  status = 200
+
+[[redirects]]
+  from = "/api/test-config"
+  to = "/.netlify/functions/test-config"
+  status = 200
+
+[[redirects]]
+  from = "/api/payment/intent"
+  to = "/.netlify/functions/stk-push"
+  status = 200
+
+[[redirects]]
+  from = "/api/payhero/create-payment"
+  to = "/.netlify/functions/create-payment"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/users"
+  to = "/.netlify/functions/admin-users"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/add-marketer"
+  to = "/.netlify/functions/admin-add-marketer"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/remove-marketer"
+  to = "/.netlify/functions/admin-remove-marketer"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/deposits/summary"
+  to = "/.netlify/functions/admin-deposits-summary"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/settings"
+  to = "/.netlify/functions/admin-settings"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/settings/marketer-demo-win-rate"
+  to = "/.netlify/functions/admin-settings-marketer-demo-win-rate"
+  status = 200
+
+[[redirects]]
+  from = "/api/admin/settings/marketer-real-win-rate"
+  to = "/.netlify/functions/admin-settings-marketer-real-win-rate"
+  status = 200
+
+# CORS headers for all functions
+[[headers]]
+  for = "/.netlify/functions/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "GET,POST,PUT,DELETE,OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type, Authorization"

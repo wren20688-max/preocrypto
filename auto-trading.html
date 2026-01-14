@@ -66,8 +66,8 @@
     <section class="content-card">
       <h3>🎯 Account Selection</h3>
       <div style="display: flex; gap: 15px; margin-bottom: 20px;">
-        <button id="demoAccountBtn" class="toggle-btn demo-active" style="flex: 1; padding: 12px; border: 2px solid transparent; border-radius: 8px; background: rgba(0, 212, 255, 0.1); color: #00d4ff; cursor: pointer; font-weight: 600; transition: all 0.3s;">📱 Demo Account</button>
-        <button id="realAccountBtn" class="toggle-btn" style="flex: 1; padding: 12px; border: 2px solid transparent; border-radius: 8px; background: rgba(100, 100, 100, 0.1); color: #999; cursor: pointer; font-weight: 600; transition: all 0.3s;">💎 Real Account</button>
+        <button id="demoAccountBtn" class="toggle-btn demo-active" style="flex: 1; padding: 12px; border: 2px solid transparent; border-radius: 8px; background: rgba(0, 212, 255, 0.1); color: #00d4ff; cursor: pointer; font-weight: 600; transition: all 0.3s;" onclick="switchTradingAccount('demo')">📱 Demo Account</button>
+        <button id="realAccountBtn" class="toggle-btn" style="flex: 1; padding: 12px; border: 2px solid transparent; border-radius: 8px; background: rgba(100, 100, 100, 0.1); color: #999; cursor: pointer; font-weight: 600; transition: all 0.3s;" onclick="switchTradingAccount('real')">💎 Real Account</button>
       </div>
       <div style="padding: 15px; background: var(--bg-secondary); border-radius: 8px; border-left: 4px solid #00d4ff;">
         <div style="font-size: 12px; color: var(--text-tertiary); margin-bottom: 5px;">Trading Account Balance:</div>
@@ -171,11 +171,9 @@
         </div>
       </div>
       <div style="display:flex; gap:12px;">
-        <button id="startBotBtn" class="action-btn btn-primary" style="flex:1; cursor: pointer;">▶️ Start Bot</button>
-        <button id="stopBotBtn" class="action-btn btn-danger" style="flex:1; opacity:0.5; cursor: not-allowed;" disabled>⏹️ Stop Bot</button>
-        <button id="resetBotBtn" class="action-btn btn-secondary" style="flex:1; cursor: pointer;">🔄 Reset</button>
-      </div>
-      <div id="lastTradeResult" style="margin-top:12px; text-align:center; font-size:16px; font-weight:600;"></div>
+        <button id="startBotBtn" class="action-btn btn-primary" style="flex:1;">▶️ Start Bot</button>
+        <button id="stopBotBtn" class="action-btn btn-danger" style="flex:1; opacity:0.5;" disabled>⏹️ Stop Bot</button>
+        <button id="resetBotBtn" class="action-btn btn-secondary" style="flex:1;">🔄 Reset</button>
       </div>
     </section>
 
@@ -208,7 +206,6 @@
       </div>
     </section>
   </main>
-  <script src="auto-trading-app.js"></script>
 
   <script src="storage.js"></script>
   <script src="sync-manager.js"></script>
@@ -217,7 +214,6 @@
     let botStats = { trades: 0, wins: 0, losses: 0, pnl: 0 };
     let tradingAccount = 'demo'; // Track which account to trade with
     window.currentTradingAccount = 'demo'; // For sync manager
-    let lastTradeProfit = null;
 
     function switchTradingAccount(account) {
       tradingAccount = account;
@@ -243,45 +239,31 @@
         demoBtn.style.color = '#999';
         demoBtn.style.borderColor = 'transparent';
       }
-      updateLastTradeResult();
       
       loadBalance();
       SyncManager.updateBalance(); // Sync balance display
       addLog('Switched to ' + (account === 'demo' ? 'Demo' : 'Real') + ' account for trading');
     }
 
-    document.addEventListener('DOMContentLoaded', async () => {
+    document.addEventListener('DOMContentLoaded', () => {
       if (!storage.isLoggedIn()) {
         window.location.href = 'index.html';
         return;
       }
 
-      const user = await storage.getUser();
+      const user = storage.getUser();
       if (user) {
-        await loadBalance();
+        loadBalance();
       }
 
       // Refresh balance every 2 seconds to stay in sync with dashboard
-      setInterval(() => loadBalance(), 2000);
+      setInterval(loadBalance, 2000);
 
-      // Setup button event listeners
-      const startBtn = document.getElementById('startBotBtn');
-      const stopBtn = document.getElementById('stopBotBtn');
-      const resetBtn = document.getElementById('resetBotBtn');
-
-      if (startBtn) startBtn.addEventListener('click', startBot);
-      if (stopBtn) stopBtn.addEventListener('click', stopBot);
-      if (resetBtn) resetBtn.addEventListener('click', resetBot);
-
-      // Setup account switching buttons
-      const demoBtn = document.getElementById('demoAccountBtn');
-      const realBtn = document.getElementById('realAccountBtn');
-      if (demoBtn) demoBtn.addEventListener('click', () => switchTradingAccount('demo'));
-      if (realBtn) realBtn.addEventListener('click', () => switchTradingAccount('real'));
+      document.getElementById('startBotBtn').addEventListener('click', startBot);
+      document.getElementById('stopBotBtn').addEventListener('click', stopBot);
+      document.getElementById('resetBotBtn').addEventListener('click', resetBot);
 
       setupMenuToggle();
-      updateUI();
-      addLog('🚀 Auto Trading Bot loaded. Ready to start...');
     });
 
     function startBot() {
@@ -311,7 +293,7 @@
       simulateBotTrade();
     }
 
-    async function simulateBotTrade() {
+    function simulateBotTrade() {
       if (!botRunning) return;
 
       const pair = document.getElementById('botPair').value;
@@ -324,12 +306,7 @@
       }
       const strategy = document.getElementById('botStrategy').value;
       const tradeType = Math.random() > 0.5 ? 'BUY' : 'SELL';
-      
-      // Get current balance asynchronously
-      const user = await storage.getUser();
-      const currentBalance = tradingAccount === 'real' 
-        ? (user?.real_balance || 0) 
-        : (user?.demo_balance || 10000);
+      const currentBalance = storage.getBalance(tradingAccount);
 
       addLog('[' + strategy + '] Signal generated - ' + tradeType + ' ' + volume + ' ' + pair);
 
@@ -377,8 +354,6 @@
           status: 'completed'
         });
         
-        lastTradeProfit = profit;
-        updateLastTradeResult();
         if (profit > 0) {
           botStats.wins++;
           addLog('✅ Trade closed with PROFIT: +$' + profit.toFixed(2) + ' (Balance: $' + newBalance.toFixed(2) + ')');
@@ -390,7 +365,7 @@
         botStats.trades++;
         botStats.pnl += profit;
         updateStats();
-        await loadBalance();
+        loadBalance();
 
         if (botRunning && botStats.trades < parseInt(document.getElementById('botMaxTrades').value)) {
           setTimeout(simulateBotTrade, 3000);
@@ -399,20 +374,6 @@
           stopBot();
         }
       }, 2000);
-        function updateLastTradeResult() {
-          const el = document.getElementById('lastTradeResult');
-          if (el) {
-            if (lastTradeProfit === null) {
-              el.textContent = '';
-            } else if (lastTradeProfit > 0) {
-              el.textContent = `Profit taken: +$${lastTradeProfit.toFixed(2)}`;
-              el.style.color = 'var(--success)';
-            } else {
-              el.textContent = `Loss: $${lastTradeProfit.toFixed(2)}`;
-              el.style.color = 'var(--danger)';
-            }
-          }
-        }
     }
 
     function stopBot() {
@@ -443,63 +404,41 @@
     }
 
     function updateUI() {
-      const startBtn = document.getElementById('startBotBtn');
-      const stopBtn = document.getElementById('stopBotBtn');
-      
-      if (startBtn) {
-        startBtn.disabled = botRunning;
-        startBtn.style.opacity = botRunning ? '0.5' : '1';
-        startBtn.style.cursor = botRunning ? 'not-allowed' : 'pointer';
-      }
-      
-      if (stopBtn) {
-        stopBtn.disabled = !botRunning;
-        stopBtn.style.opacity = botRunning ? '1' : '0.5';
-        stopBtn.style.cursor = botRunning ? 'pointer' : 'not-allowed';
-      }
-      
+      document.getElementById('startBotBtn').disabled = botRunning;
+      document.getElementById('stopBotBtn').disabled = !botRunning;
       document.getElementById('botPair').disabled = botRunning;
       document.getElementById('botVolume').disabled = botRunning;
       document.getElementById('botStrategy').disabled = botRunning;
 
       const statusEl = document.getElementById('botStatusText');
-      if (statusEl) {
-        if (botRunning) {
-          statusEl.textContent = 'Running 🟢';
-          statusEl.style.color = 'var(--success)';
-        } else {
-          statusEl.textContent = 'Stopped 🔴';
-          statusEl.style.color = 'var(--danger)';
-        }
+      if (botRunning) {
+        statusEl.textContent = 'Running';
+        statusEl.style.color = 'var(--success)';
+      } else {
+        statusEl.textContent = 'Stopped';
+        statusEl.style.color = 'var(--danger)';
       }
     }
 
-    async function loadBalance() {
-      try {
-        const user = await storage.getUser();
-        let balance = 0;
-        
-        // FOR MARKETERS: Load from Supabase (using backend API)
-        if (user) {
-          const userData = await storage.getUser();
-          if (tradingAccount === 'real') {
-            balance = userData.real_balance || 0;
-          } else {
-            balance = userData.demo_balance || 10000;
-          }
+    function loadBalance() {
+      let balance;
+      const user = storage.getUser();
+      
+      // FOR MARKETERS: Load from marketers array (this is the key fix!)
+      if (user && tradingAccount === 'real') {
+        const marketers = JSON.parse(localStorage.getItem('marketers') || '[]');
+        const marketer = marketers.find(m => m.email === user.email);
+        if (marketer && marketer.isMarketer) {
+          balance = marketer.balance || 0;
         } else {
-          balance = tradingAccount === 'real' ? 0 : 10000;
+          balance = storage.getBalance(tradingAccount);
         }
-        
-        document.getElementById('balance').textContent = '$' + parseFloat(balance).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-        document.getElementById('tradingAccountBalance').textContent = '$' + parseFloat(balance).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-      } catch (err) {
-        console.error('Balance load error:', err);
-        // Fallback to default
-        const defaultBalance = tradingAccount === 'real' ? 0 : 10000;
-        document.getElementById('balance').textContent = '$' + defaultBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-        document.getElementById('tradingAccountBalance').textContent = '$' + defaultBalance.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+      } else {
+        balance = storage.getBalance(tradingAccount);
       }
+      
+      document.getElementById('balance').textContent = '$' + parseFloat(balance).toLocaleString('en-US', {minimumFractionDigits: 2});
+      document.getElementById('tradingAccountBalance').textContent = '$' + parseFloat(balance).toLocaleString('en-US', {minimumFractionDigits: 2});
     }
 
     function setupMenuToggle() {

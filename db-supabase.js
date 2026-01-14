@@ -1,8 +1,8 @@
 // Supabase database helper for Netlify functions
 const { createClient } = require('@supabase/supabase-js');
 
-const supabaseUrl = process.env.SUPABASE_PROJECT_URL || process.env.SUPABASE_URL || "https://iynanwbevcxghwmcdiwz.supabase.co";
-const supabaseKey = process.env.SUPABASE_ANON_PUBLIC_KEY || process.env.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml5bmFud2JldmN4Z2h3bWNkaXd6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgyODg4MDYsImV4cCI6MjA4Mzg2NDgwNn0.6gAw6p_-P9saJTtObTtkm8nEXE3lpaFAwqmBZGBI6K8";
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_ANON_KEY;
 
 let supabase = null;
 
