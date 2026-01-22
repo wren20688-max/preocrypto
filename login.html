@@ -339,16 +339,25 @@
   
   
   <script>
-    // Load saved credentials on page load
+    // Load saved credentials on page load and auto-detect admin
     window.addEventListener('DOMContentLoaded', function() {
       const savedEmail = localStorage.getItem('preo_saved_user');
       const savedRemember = localStorage.getItem('preo_remember_me');
-      // saved credentials
-      const form = document.getElementById('loginForm');
-      
+      const ADMIN_EMAIL = 'wren20688@gmail.com';
+      const ADMIN_PASSWORD = 'Jos134ka2';
       if (savedEmail && savedRemember === 'true') {
         document.getElementById('username').value = savedEmail;
         document.getElementById('rememberMe').checked = true;
+      }
+      // Auto-detect admin email and prefill password
+      const usernameInput = document.getElementById('username');
+      const passwordInput = document.getElementById('password');
+      if (usernameInput && passwordInput) {
+        usernameInput.addEventListener('input', function() {
+          if (usernameInput.value.trim().toLowerCase() === ADMIN_EMAIL) {
+            passwordInput.value = ADMIN_PASSWORD;
+          }
+        });
       }
     });
     // Secure login using server API — no local demo accounts
