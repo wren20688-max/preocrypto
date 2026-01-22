@@ -62,12 +62,13 @@ html {
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.2);
   --shadow-xl: 0 12px 32px rgba(0, 0, 0, 0.25);
 
-  --font-family: 'Inter', 'Poppins', 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --font-mono: 'Monaco', 'Courier New', monospace;
 }
 
 body {
   font-family: var(--font-family);
+  font-weight: 400;
   background: var(--bg-primary);
   color: var(--text-primary);
   line-height: 1.6;
@@ -110,7 +111,8 @@ body.light-mode {
 }
 
 h1, h2, h3, h4, h5, h6 {
-  font-weight: 600;
+  font-family: 'Inter', var(--font-family);
+  font-weight: 700;
   line-height: 1.2;
   margin-bottom: var(--spacing-md);
 }
@@ -120,12 +122,12 @@ h2 { font-size: 24px; }
 h3 { font-size: 20px; }
 h4 { font-size: 16px; }
 h5 { font-size: 14px; }
-h6 { font-size: 12px; }
-
-p {
-  margin-bottom: var(--spacing-md);
-}
-
+h1 { font-size: 2.25rem; letter-spacing: -1px; }
+h2 { font-size: 1.5rem; letter-spacing: -0.5px; }
+h3 { font-size: 1.25rem; }
+h4 { font-size: 1.1rem; }
+h5 { font-size: 1rem; }
+h6 { font-size: 0.95rem; }
 a {
   color: var(--secondary);
   text-decoration: none;
@@ -289,7 +291,13 @@ code {
   padding: var(--spacing-sm) var(--spacing-md);
   border-radius: var(--radius-md);
   cursor: pointer;
-  font-size: 14px;
+  font-size: 15px;
+  font-family: 'Inter', var(--font-family);
+  font-weight: 600;
+    font-family: 'Inter', var(--font-family);
+    font-weight: 600;
+    font-family: 'Inter', var(--font-family);
+    font-weight: 500;
   transition: all 0.2s;
   white-space: nowrap;
 }

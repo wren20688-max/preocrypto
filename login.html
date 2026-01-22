@@ -318,6 +318,8 @@
 
       <button type="submit">Sign In</button>
 
+      <div id="loginError" style="display:none;color:#EF4444;font-size:14px;text-align:center;margin-top:8px;font-weight:600;"></div>
+
       
 
       <div class="auth-links">
@@ -367,7 +369,17 @@
       const pwd = document.getElementById('password').value;
       const rememberMe = document.getElementById('rememberMe').checked;
 
-      if (!ident || !pwd) { alert('Please enter your credentials'); return; }
+      const errorDiv = document.getElementById('loginError');
+      if (errorDiv) errorDiv.style.display = 'none';
+      if (!ident || !pwd) {
+        if (errorDiv) {
+          errorDiv.textContent = 'Please enter your credentials.';
+          errorDiv.style.display = 'block';
+        } else {
+          alert('Please enter your credentials');
+        }
+        return;
+      }
 
       // Show loading state
       const loginBtn = document.querySelector('button[type="submit"]');
@@ -388,6 +400,15 @@
         if (!res.ok) {
           const msg = d.error || 'Login failed';
           const status = res.status || 0;
+          // Show error in errorDiv if present
+          if (errorDiv) {
+            let displayMsg = msg;
+            if (msg.toLowerCase().includes('invalid credentials') || status === 401) {
+              displayMsg = 'Account not found. Please create one.';
+            }
+            errorDiv.textContent = displayMsg;
+            errorDiv.style.display = 'block';
+          }
           throw new Error(`API_ERROR:${status}:${msg}`);
         }
         return d;
@@ -425,7 +446,7 @@
         const status = parts.length >= 3 ? parseInt(parts[1],10) : 0;
         const reason = parts.length >= 3 ? parts.slice(2).join(':') : msg;
         const isNetworkError = msg.includes('Failed to fetch') || msg.includes('Network error') || msg.includes('NetworkError');
-        
+
         const remoteOrigin = (window.appConfig && (window.appConfig.apiOrigin||window.appConfig.baseUrl)) || '';
         // Try fallback endpoints (netlify function on remote, then local ports)
         const fallbacks = [];
@@ -436,6 +457,7 @@
         fallbacks.push('http://127.0.0.1:3000/api/auth/login');
 
         let lastErr = reason || msg;
+        let found = false;
         for (const url of fallbacks) {
           try {
             const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: ident, password: pwd }) });
@@ -445,34 +467,42 @@
               localStorage.setItem('preo_token', token);
               localStorage.setItem('preo_user', JSON.stringify({ username: user.name || user.username, email: user.email || (ident.includes('@') ? ident : ''), role: user.isAdmin ? 'admin' : 'trader' }));
               window.location.href = user.isAdmin ? 'admin.html' : 'dashboard.html';
-              return;
+              found = true;
+              break;
             }
             lastErr = (j && (j.error || j.message)) || (`HTTP ${r.status}`);
           } catch (e2) {
             lastErr = e2 && e2.message ? e2.message : String(e2);
           }
         }
-        
+        if (found) return;
+
         if (isNetworkError || lastErr.includes('Failed to fetch')) {
           // Backend unavailable - try LOCAL DEMO MODE
           console.warn('Backend unavailable, trying local demo mode');
-          
           try {
             // Check localStorage for users
             const users = JSON.parse(localStorage.getItem('users') || '[]');
             let user = users.find(u => u.username === ident || (u.email && u.email.toLowerCase() === ident.toLowerCase()));
-            
             if (!user) {
-              alert('❌ No local account found.\n\nCreate an account first, or install Node.js and run: netlify dev');
+              if (errorDiv) {
+                errorDiv.textContent = 'Account not found. Please create one.';
+                errorDiv.style.display = 'block';
+              } else {
+                alert('❌ No local account found.\n\nCreate an account first, or install Node.js and run: netlify dev');
+              }
               return;
             }
-            
             // Check password
             if (user.password !== pwd) {
-              alert('❌ Invalid password');
+              if (errorDiv) {
+                errorDiv.textContent = 'Invalid password.';
+                errorDiv.style.display = 'block';
+              } else {
+                alert('❌ Invalid password');
+              }
               return;
             }
-            
             // Create demo token and login
             const demoToken = 'demo_' + btoa(user.username + ':' + Date.now());
             localStorage.setItem('preo_token', demoToken);
@@ -481,19 +511,27 @@
               email: user.email || '', 
               role: user.isAdmin ? 'admin' : 'trader' 
             }));
-            
             if (rememberMe) {
               localStorage.setItem('preo_saved_user', ident);
               localStorage.setItem('preo_remember_me', 'true');
             }
-            
             window.location.href = user.isAdmin ? 'admin.html' : 'dashboard.html';
             return;
           } catch (localErr) {
-            alert('⚠️ Backend server not running\n\nPlease start the server to login.\n\nAfter installing Node.js, run: netlify dev');
+            if (errorDiv) {
+              errorDiv.textContent = '⚠️ Backend server not running. Please start the server to login.';
+              errorDiv.style.display = 'block';
+            } else {
+              alert('⚠️ Backend server not running\n\nPlease start the server to login.\n\nAfter installing Node.js, run: netlify dev');
+            }
           }
         } else {
-          alert('❌ Login failed: ' + lastErr);
+          if (errorDiv) {
+            errorDiv.textContent = '❌ Login failed: ' + lastErr;
+            errorDiv.style.display = 'block';
+          } else {
+            alert('❌ Login failed: ' + lastErr);
+          }
         }
       });
     });
