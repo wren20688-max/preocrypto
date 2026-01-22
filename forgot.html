@@ -5,17 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Forgot Password — PreoCrypto</title>
   <link rel="stylesheet" href="style.css" />
-  <style>
-    body { display:flex; min-height:100vh; align-items:center; justify-content:center; background: linear-gradient(135deg,#0a1a2e,#0f3460); }
-    .panel { background: rgba(15,52,96,0.85); border:1px solid rgba(0,212,255,0.2); border-radius:16px; padding:28px; width:100%; max-width:480px; color:#fff; }
-    .field { display:flex; flex-direction:column; gap:8px; margin-bottom:14px; }
-    .field input { padding:12px; background: rgba(255,255,255,0.08); border:1px solid rgba(0,212,255,0.2); border-radius:10px; color:#fff; }
-    .actions { display:flex; gap:10px; margin-top:10px; }
-    button { padding:12px 16px; border:none; border-radius:10px; font-weight:600; cursor:pointer; }
-    .primary { background: linear-gradient(135deg,#00d4ff,#0055ff); color:#fff; }
-    .outline { background: rgba(255,255,255,0.1); color:#00d4ff; border:1.5px solid rgba(0,212,255,0.5); }
-    .msg { margin-top:10px; font-size:0.95em; opacity:0.85; }
-  </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Poppins:wght@400;600&family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+      body { display:flex; min-height:100vh; align-items:center; justify-content:center; background-color: var(--background-color); }
+      .panel { background-color: var(--panel-background); border:1px solid var(--panel-border); border-radius:16px; padding:28px; width:100%; max-width:480px; color: var(--text-color); }
+      .field { display:flex; flex-direction:column; gap:8px; margin-bottom:14px; }
+      .field input { padding:12px; background-color: var(--input-background); border:1px solid var(--input-border); border-radius:10px; color: var(--input-text-color); }
+      .actions { display:flex; gap:10px; margin-top:10px; }
+      button { padding:12px 16px; border:none; border-radius:10px; font-weight:600; cursor:pointer; }
+      .primary { background-color: var(--primary-background); color: var(--primary-text-color); }
+      .outline { background-color: var(--outline-background); color: var(--outline-text-color); border:1.5px solid var(--outline-border); }
+      .msg { margin-top:10px; font-size:0.95em; opacity:0.85; }
+    </style>
 </head>
 <body>
   <div class="panel">

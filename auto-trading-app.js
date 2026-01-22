@@ -58,34 +58,56 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 function startBot() {
-    botRunning = true;
-    updateUI();
-    addLog('🤖 Bot initialized with ' + document.getElementById('botStrategy').value + ' strategy...');
-    addLog('📊 Trading ' + document.getElementById('botVolume').value + ' units of ' + document.getElementById('botPair').value);
-    addLog('💰 Account: ' + (tradingAccount === 'demo' ? 'Demo' : 'Real'));
-    addLog('🎯 Max trades today: ' + document.getElementById('botMaxTrades').value);
-    const vol = parseFloat(document.getElementById('botVolume').value) || 0;
-    const approxNotional = vol * 100;
-    if (tradingAccount === 'real' && approxNotional < 15) {
-        botRunning = false;
+    (async () => {
+        botRunning = true;
         updateUI();
-        addLog('❌ Minimum trade amount for real account is $15. Increase volume.');
-        return;
-    }
-    if (tradingAccount === 'demo') {
-        addLog('✅ Demo account - no minimum restrictions');
-    }
-    simulateBotTrade();
+        addLog('🤖 Bot initialized with ' + document.getElementById('botStrategy').value + ' strategy...');
+        addLog('📊 Trading ' + document.getElementById('botVolume').value + ' units of ' + document.getElementById('botPair').value);
+        addLog('💰 Account: ' + (tradingAccount === 'demo' ? 'Demo' : 'Real'));
+        addLog('🎯 Max trades today: ' + document.getElementById('botMaxTrades').value);
+        const vol = parseFloat(document.getElementById('botVolume').value) || 0;
+        const approxNotional = vol * 100;
+        if (tradingAccount === 'real') {
+            const user = await storage.getUser();
+            const realBalance = user?.real_balance || 0;
+            if (approxNotional < 15) {
+                botRunning = false;
+                updateUI();
+                addLog('❌ Minimum trade amount for real account is $15. Increase volume.');
+                return;
+            }
+            if (realBalance < approxNotional) {
+                botRunning = false;
+                updateUI();
+                addLog('❌ Insufficient real account balance to start bot. Required: $' + approxNotional.toFixed(2) + ', Available: $' + realBalance.toFixed(2));
+                return;
+            }
+        }
+        if (tradingAccount === 'demo') {
+            addLog('✅ Demo account - no minimum restrictions');
+        }
+        simulateBotTrade();
+    })();
 }
 
 async function simulateBotTrade() {
     if (!botRunning) return;
     const pair = document.getElementById('botPair').value;
     const volume = parseFloat(document.getElementById('botVolume').value);
-    if (tradingAccount === 'real' && (volume * 100) < 15) {
-        addLog('⚠️ Skipped trade: below $15 minimum for real account');
-        setTimeout(simulateBotTrade, 3000);
-        return;
+    const approxNotional = volume * 100;
+    if (tradingAccount === 'real') {
+        if (approxNotional < 15) {
+            addLog('⚠️ Skipped trade: below $15 minimum for real account');
+            setTimeout(simulateBotTrade, 3000);
+            return;
+        }
+        const user = await storage.getUser();
+        const realBalance = user?.real_balance || 0;
+        if (realBalance < approxNotional) {
+            addLog('❌ Skipped trade: insufficient real account balance. Required: $' + approxNotional.toFixed(2) + ', Available: $' + realBalance.toFixed(2));
+            setTimeout(simulateBotTrade, 3000);
+            return;
+        }
     }
     const strategy = document.getElementById('botStrategy').value;
     const tradeType = Math.random() > 0.5 ? 'BUY' : 'SELL';
